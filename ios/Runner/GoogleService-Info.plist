@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>131230945810-u0a97n3hkmniohnkl320leottoiio6h6.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.131230945810-u0a97n3hkmniohnkl320leottoiio6h6</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBv4-LmmnyTfq_SowjocspfTZeLiCwW45k</string>
+	<key>GCM_SENDER_ID</key>
+	<string>131230945810</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.bookswiperapp</string>
+	<key>PROJECT_ID</key>
+	<string>matchbook-b610d</string>
+	<key>STORAGE_BUCKET</key>
+	<string>matchbook-b610d.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:131230945810:ios:dcca13169543ec7470becb</string>
+</dict>
+</plist>
