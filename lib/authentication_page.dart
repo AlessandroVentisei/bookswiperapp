@@ -33,6 +33,17 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
     }
   }
 
+  Future<dynamic> signInWithApple() async {
+    try {
+      final AuthProvider appleProvider = AppleAuthProvider();
+      UserCredential user =
+          await FirebaseAuth.instance.signInWithProvider(appleProvider);
+      return user;
+    } on Exception catch (e) {
+      print('exception->$e');
+    }
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: appTheme.colorScheme.primary,
@@ -57,14 +68,20 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                 OutlinedButton(
                   onPressed: () async {
                     userCredential.value = await signInWithGoogle();
-                    if (userCredential.value != null) {
+                    if (userCredential.value != null && mounted) {
+                      Navigator.popUntil(context, ModalRoute.withName('/'));
                       print(userCredential.value);
                     }
                   },
                   child: Text("Continue with Google"),
                 ),
                 OutlinedButton(
-                  onPressed: () => {},
+                  onPressed: () async {
+                    userCredential.value = await signInWithApple();
+                    if (userCredential.value != null && mounted) {
+                      Navigator.popUntil(context, ModalRoute.withName('/'));
+                    }
+                  },
                   child: Text("Continue with Apple"),
                 ),
                 Row(
