@@ -17,13 +17,37 @@ final ThemeData appTheme = ThemeData(
         fontStyle: FontStyle.italic,
         height: 1.0),
     headlineMedium: GoogleFonts.sourceSerif4(
-        fontSize: 48.0,
+        fontSize: 36.0,
+        fontWeight: FontWeight.w300,
+        color: surfaceColor,
+        height: 1.0,
+        fontStyle: FontStyle.italic),
+    headlineSmall: GoogleFonts.sourceSerif4(
+        fontSize: 24.0,
+        fontWeight: FontWeight.w100,
+        color: surfaceColor,
+        height: 1.0,
+        fontStyle: FontStyle.italic),
+    displayLarge: GoogleFonts.sortsMillGoudy(
+        fontSize: 32,
+        fontWeight: FontWeight.w100,
+        color: surfaceColor,
+        height: 1.0,
+        fontStyle: FontStyle.italic),
+    displayMedium: GoogleFonts.sortsMillGoudy(
+        fontSize: 20,
         fontWeight: FontWeight.w100,
         color: surfaceColor,
         height: 1.0,
         fontStyle: FontStyle.italic),
     bodyLarge: GoogleFonts.sourceSerif4(
         fontSize: 20.0, color: surfaceColor, fontWeight: FontWeight.w200),
+    bodyMedium: GoogleFonts.sourceSerif4(
+        fontSize: 14.0, color: surfaceColor, fontWeight: FontWeight.w300),
+    bodySmall: GoogleFonts.sourceSerif4(
+        fontSize: 12.0,
+        color: const Color.fromARGB(127, 255, 255, 255),
+        fontWeight: FontWeight.w300),
   ),
   appBarTheme: AppBarTheme(
     iconTheme: IconThemeData(color: Colors.white),
@@ -44,6 +68,49 @@ final ThemeData appTheme = ThemeData(
         ),
       ),
     ),
+  ),
+  inputDecorationTheme: InputDecorationTheme(
+    counterStyle: TextStyle(
+      color: Colors.white,
+    ),
+    floatingLabelBehavior: FloatingLabelBehavior.never,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(16)),
+      borderSide: BorderSide(
+        color: const Color.fromARGB(100, 255, 255, 255),
+      ),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(16)),
+      borderSide: BorderSide(
+        color: const Color.fromARGB(100, 255, 255, 255),
+      ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(16)),
+      borderSide: BorderSide(
+        color: Colors.white,
+      ),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderSide: BorderSide(
+        color: secondaryColor,
+      ),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderSide: BorderSide(
+        color: secondaryColor,
+      ),
+    ),
+    labelStyle: GoogleFonts.sortsMillGoudy(
+        color: const Color.fromARGB(100, 255, 255, 255),
+        fontSize: 20.0,
+        height: 1.0),
+    floatingLabelStyle: GoogleFonts.sortsMillGoudy(
+        color: const Color.fromARGB(100, 255, 255, 255),
+        fontSize: 20.0,
+        height: 1.0),
+    iconColor: const Color.fromARGB(100, 255, 255, 255),
   ),
   outlinedButtonTheme: OutlinedButtonThemeData(
     style: ButtonStyle(

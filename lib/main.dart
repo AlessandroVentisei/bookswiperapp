@@ -36,6 +36,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/first': (context) => FirstOpen(),
         '/auth': (context) => AuthenticationPage(),
+        '/explore': (context) => HomePage(),
       },
     );
   }
@@ -103,12 +104,60 @@ class _MyHomePageState extends State<MyHomePage> {
                           child: Text('Go to First Page'),
                         ),
                       ),
+                      SuggestedAuthorsWidget(), // Add the suggested authors widget here
                     ],
                   ),
                 )
               : HomePage();
         },
       ),
+    );
+  }
+}
+
+class SuggestedAuthorsWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    List<Map<String, String>> authors = [
+      {'name': 'Author 1', 'image': 'assets/author1.jpg'},
+      {'name': 'Author 2', 'image': 'assets/author2.jpg'},
+      {'name': 'Author 3', 'image': 'assets/author3.jpg'},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Suggested Authors',
+          style: appTheme.textTheme.headlineMedium,
+        ),
+        SizedBox(height: 16),
+        SizedBox(
+          height: 100,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: authors.length,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundImage: AssetImage(authors[index]['image']!),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      authors[index]['name']!,
+                      style: appTheme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
