@@ -25,6 +25,7 @@
 .packages
 .pub-cache/
 .pub/
+.node_modules/**
 /build/
 
 # Android related
@@ -69,3 +70,5 @@
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 android/app/google-services.json
+node_modules/.bin/acorn
+node_modules

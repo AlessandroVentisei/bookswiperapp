@@ -6,6 +6,7 @@ import 'theme/theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import './functions/user_checks.dart';
 
 ValueNotifier<User?> userCredential = ValueNotifier(null);
 
@@ -21,6 +22,7 @@ void main() async {
     } else {
       print('User is signed in!');
       userCredential.value = user;
+      checkIfNewUser(user);
     }
   });
   runApp(MyApp());

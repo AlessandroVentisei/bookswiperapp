@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'dart:math';
 
-class ExplorePage extends StatefulWidget {
-  const ExplorePage({super.key});
+class NewUserSetup extends StatefulWidget {
+  const NewUserSetup({super.key});
 
   @override
-  _ExplorePage createState() => _ExplorePage();
+  _NewUserSetup createState() => _NewUserSetup();
 }
 
-class _ExplorePage extends State<ExplorePage> {
+class _NewUserSetup extends State<NewUserSetup> {
   int cardIndex = 0;
   final ScrollController _scrollController = ScrollController();
 
