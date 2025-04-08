@@ -1,5 +1,6 @@
 import 'package:bookswiperapp/authentication_page.dart';
 import 'package:bookswiperapp/home.dart';
+import 'package:bookswiperapp/new_user_setup.dart';
 import 'package:flutter/material.dart';
 import 'first_page.dart';
 import 'theme/theme.dart';
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
         '/first': (context) => FirstOpen(),
         '/auth': (context) => AuthenticationPage(),
         '/explore': (context) => HomePage(),
+        '/setup': (context) => NewUserSetup(),
       },
     );
   }

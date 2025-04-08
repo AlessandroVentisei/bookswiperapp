@@ -1,0 +1,166 @@
+{"works": [
+{
+"author_key": [
+"OL7422948A"
+],
+"author_name": [
+"James Clear"
+],
+"cover_edition_key": "OL36647151M",
+"cover_i": 12539702,
+"edition_count": 41,
+"first_publish_year": 2016,
+"has_fulltext": true,
+"ia": [
+"atomichabitseasy0000clea"
+],
+"ia_collection_s": "internetarchivebooks;printdisabled",
+"key": "/works/OL17930368W",
+"language": [
+"eng",
+"ind",
+"fre",
+"tur",
+"por",
+"spa"
+],
+"public_scan_b": false,
+"title": "Atomic Habits",
+"availability": {
+"status": "private",
+"available_to_browse": false,
+"available_to_borrow": false,
+"available_to_waitlist": false,
+"is_printdisabled": true,
+"is_readable": false,
+"is_lendable": false,
+"is_previewable": true,
+"identifier": "atomichabitseasy0000clea",
+"isbn": "9781847941831",
+"oclc": null,
+"openlibrary_work": "OL17930368W",
+"openlibrary_edition": "OL27918581M",
+"last_loan_date": null,
+"num_waitlist": null,
+"last_waitlist_date": null,
+"is_restricted": true,
+"is_browseable": false,
+"__src__": "core.models.lending.get_availability"
+}
+},
+{
+"author_key": [
+"OL236414A",
+"OL224036A"
+],
+"author_name": [
+"Robert Greene",
+"Joost Elffers"
+],
+"cover_edition_key": "OL24274306M",
+"cover_i": 6424160,
+"edition_count": 52,
+"first_publish_year": 1998,
+"has_fulltext": true,
+"ia": [
+"powerdie48gesetz0000robe",
+"48lawsofpow00gree",
+"48lawsofpower00greerich",
+"48lawsofpower00gree"
+],
+"ia_collection_s": "americana;delawarecountydistrictlibrary;gbell;inlibrary;internetarchivebooks;nclive;printdisabled;unclibraries",
+"key": "/works/OL1968368W",
+"language": [
+"rus",
+"tur",
+"spa",
+"ger",
+"kur",
+"eng",
+"por",
+"ara"
+],
+"lending_edition_s": "OL9036414M",
+"lending_identifier_s": "powerdie48gesetz0000robe",
+"public_scan_b": false,
+"title": "The 48 Laws of Power",
+"availability": {
+"status": "borrow_unavailable",
+"available_to_browse": false,
+"available_to_borrow": false,
+"available_to_waitlist": false,
+"is_printdisabled": true,
+"is_readable": false,
+"is_lendable": true,
+"is_previewable": true,
+"identifier": "powerdie48gesetz0000robe",
+"isbn": "9783446197596",
+"oclc": null,
+"openlibrary_work": "OL1968398W",
+"openlibrary_edition": "OL9036414M",
+"last_loan_date": null,
+"num_waitlist": null,
+"last_waitlist_date": null,
+"is_restricted": true,
+"is_browseable": false,
+"__src__": "core.models.lending.get_availability"
+}
+},
+{
+"author_key": [
+"OL14948835A"
+],
+"author_name": [
+"Eric Robertson"
+],
+"cover_i": 12009823,
+"edition_count": 3,
+"first_publish_year": 2019,
+"has_fulltext": false,
+"key": "/works/OL25312237W",
+"language": [
+"ind"
+],
+"public_scan_b": false,
+"title": "Control Your Mind and Master Your Feelings"
+},
+{
+"author_key": [
+"OL13815321A"
+],
+"author_name": [
+"Rithvik Singh"
+],
+"cover_edition_key": "OL52209936M",
+"cover_i": 14638562,
+"edition_count": 1,
+"first_publish_year": 2024,
+"has_fulltext": false,
+"key": "/works/OL38382569W",
+"language": [
+"eng"
+],
+"public_scan_b": false,
+"title": "I Don't Love You Anymore"
+},
+{
+"author_key": [
+"OL9180803A"
+],
+"author_name": [
+"Ana Huang"
+],
+"cover_i": 12940491,
+"edition_count": 13,
+"first_publish_year": 2021,
+"has_fulltext": false,
+"key": "/works/OL24390422W",
+"language": [
+"spa",
+"eng"
+],
+"public_scan_b": false,
+"title": "Twisted Love"
+}
+]
+}

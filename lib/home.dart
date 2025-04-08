@@ -1,4 +1,6 @@
 import 'package:bookswiperapp/explore_page.dart';
+import 'package:bookswiperapp/functions/get_books.dart';
+import 'package:bookswiperapp/new_user_setup.dart';
 import 'package:bookswiperapp/theme/theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -44,7 +46,7 @@ class _HomePage extends State<HomePage> {
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ExplorePage(),
+                          builder: (context) => NewUserSetup(),
                         ));
                   },
                   child: Container(
@@ -88,6 +90,12 @@ class _HomePage extends State<HomePage> {
                     await FirebaseAuth.instance.signOut();
                   },
                   child: Text('Sign Out'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    uploadTrendingBooks(FirebaseAuth.instance.currentUser!);
+                  },
+                  child: Text('Add Books'),
                 ),
               ],
             ),

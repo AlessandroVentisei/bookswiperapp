@@ -1,5 +1,7 @@
+import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:bookswiperapp/home.dart';
 import 'package:bookswiperapp/theme/theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
@@ -14,12 +16,9 @@ class NewUserSetup extends StatefulWidget {
 
 class _NewUserSetup extends State<NewUserSetup> {
   int cardIndex = 0;
-  final ScrollController _scrollController = ScrollController();
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
+  Future<List<Book>> _loadBooks() async {
+    return await getBooks(FirebaseAuth.instance.currentUser!);
   }
 
   @override
@@ -27,157 +26,6 @@ class _NewUserSetup extends State<NewUserSetup> {
     void _onCardChanged(int newIndex) {
       cardIndex = newIndex;
     }
-
-    List<Container> cards = [
-      Container(
-        height: 400, // Fixed height for the card
-        width: double.infinity,
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(color: appTheme.colorScheme.primary),
-        child: SingleChildScrollView(
-          controller: cardIndex == 0 ? _scrollController : null,
-          clipBehavior: Clip.none,
-          child: Column(
-            spacing: 12,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedBuilder(
-                animation: _scrollController,
-                builder: (context, child) {
-                  double scale =
-                      1 - (_scrollController.offset / 1000).clamp(0, 0.5);
-                  double height = 550 *
-                      pow(scale, 2).toDouble(); // Adjust the height dynamically
-                  return Container(
-                    height: height,
-                    child: Transform.scale(
-                      scale: scale,
-                      child: child,
-                    ),
-                  );
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.network(
-                    'https://picsum.photos/200/300',
-                    width: double.infinity,
-                    fit: BoxFit.fitHeight,
-                  ),
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                spacing: 12,
-                children: [
-                  Text("1984", style: appTheme.textTheme.headlineMedium),
-                  Text("George Orwell",
-                      style: appTheme.textTheme.headlineSmall),
-                ],
-              ),
-              Text(
-                  "Nineteen Eighty-Four, often referred to as 1984, is a dystopian social science fiction novel by the English novelist George Orwell.",
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ),
-      Container(
-        height: 400, // Fixed height for the card
-        width: double.infinity,
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(color: appTheme.colorScheme.primary),
-        child: SingleChildScrollView(
-          controller: cardIndex == 1 ? _scrollController : null,
-          clipBehavior: Clip.none,
-          child: Column(
-            spacing: 12,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedBuilder(
-                animation: _scrollController,
-                builder: (context, child) {
-                  // Adjust the height dynamically
-                  return Container(
-                    height: 500,
-                    child: Transform.scale(
-                      scale: 1,
-                      child: child,
-                    ),
-                  );
-                },
-                child: AnimatedBuilder(
-                  animation: _scrollController,
-                  builder: (context, child) {
-                    // Adjust the height dynamically
-                    return Container(
-                      height: 500,
-                      child: Transform.scale(
-                        scale: 1,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Image.network('https://picsum.photos/200/300',
-                          width: double.infinity, fit: BoxFit.fill)),
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                spacing: 12,
-                children: [
-                  Text("1984", style: appTheme.textTheme.headlineMedium),
-                  Text("George Orwell",
-                      style: appTheme.textTheme.headlineSmall),
-                ],
-              ),
-              Text(
-                  "Nineteen Eighty-Four, often referred to as 1984, is a dystopian social science fiction novel by the English novelist George Orwell.",
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ),
-    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -201,19 +49,77 @@ class _NewUserSetup extends State<NewUserSetup> {
         ),
       ),
       backgroundColor: appTheme.colorScheme.primary,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return SizedBox(
-            height: constraints.maxHeight,
-            width: constraints.maxWidth,
-            child: CardSwiper(
-              cardsCount: cards.length,
-              cardBuilder:
-                  (context, index, percentThresholdX, percentThresholdY) {
-                _onCardChanged(index);
-                return cards[index];
-              },
-            ),
+      body: FutureBuilder<List<Book>>(
+        future: _loadBooks(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            print('Error in FutureBuilder: ${snapshot.error}');
+            return Center(
+                child: Text('Error loading books. Please try again.'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+                child: Text('No books available. Please check back later.'));
+          }
+
+          List<Book> books = snapshot.data!;
+          List<Container> cards = books.map((book) {
+            return Container(
+              height: 600,
+              width: double.infinity,
+              padding: EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  stops: [0, 1.0],
+                  colors: [Color(0xFF252525), Color(0xFF1E1E1E)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                      constraints: BoxConstraints.expand(width: 60, height: 60),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Color.fromARGB(65, 140, 140, 140),
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      padding: EdgeInsets.all(12),
+                      child: Text(
+                        '👍',
+                        style: TextStyle(fontSize: 24),
+                      )),
+                  Text(book.title, style: appTheme.textTheme.headlineMedium),
+                  Text(
+                      book.subjects.isNotEmpty
+                          ? 'Subjects: ${book.subjects.join(', ')}'
+                          : 'No subjects available',
+                      style: appTheme.textTheme.bodyLarge),
+                ],
+              ),
+            );
+          }).toList();
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              return SizedBox(
+                height: constraints.maxHeight,
+                width: constraints.maxWidth,
+                child: CardSwiper(
+                  cardsCount: cards.length,
+                  cardBuilder:
+                      (context, index, percentThresholdX, percentThresholdY) {
+                    _onCardChanged(index);
+                    return cards[index];
+                  },
+                ),
+              );
+            },
           );
         },
       ),
