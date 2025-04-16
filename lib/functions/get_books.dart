@@ -11,38 +11,47 @@ class Book {
   final List<String> subjectPeople;
   final List<String> subjectPlaces;
   final List<String> subjectTimes;
-  final String authorName;
-  final String authorKey;
+  final List<String> authors;
+  final List<String> authorKey;
   final String title;
   final String bookKey;
   final int coverI;
+  final String description;
+  final String docId; // Add docId property
 
   Book({
     required this.subjects,
     required this.subjectPeople,
     required this.subjectPlaces,
     required this.subjectTimes,
-    required this.authorName,
+    required this.authors,
     required this.authorKey,
     required this.title,
     required this.bookKey,
     required this.coverI,
+    required this.description,
+    required this.docId, // Add docId to constructor
   });
 
   // Factory method to create a Book from Firestore data
-  factory Book.fromFirestore(Map<String, dynamic> data) {
+  factory Book.fromFirestore(Map<String, dynamic> data, String docId) {
+    print(data); // Debugging: Print the Firestore data
     return Book(
       subjects: List<String>.from(data['subjects'] ?? []),
       subjectPeople: List<String>.from(data['subject_people'] ?? []),
       subjectPlaces: List<String>.from(data['subject_places'] ?? []),
       subjectTimes: List<String>.from(data['subject_times'] ?? []),
-      authorName: data['author_name'] is List
-          ? (data['author_name'] as List).first.toString()
-          : data['author_name'] ?? '',
-      authorKey: data['author_key'] ?? '',
+      authors: data['authors'] is List
+          ? List<String>.from(data['authors'].map((e) => e.toString()))
+          : [data['authors']?.toString() ?? ''],
+      authorKey: data['author_key'] is List
+          ? List<String>.from(data['author_key'].map((e) => e.toString()))
+          : [data['author_key']?.toString() ?? ''],
       title: data['title'] ?? '',
-      bookKey: data['book_key'] ?? '',
-      coverI: data['cover_i'] ?? 0,
+      bookKey: data['workKey'] ?? '',
+      coverI: data['coverId'] ?? 0,
+      description: data['description'] ?? "",
+      docId: docId, // Assign docId
     );
   }
 
@@ -53,11 +62,12 @@ class Book {
       'subject_people': subjectPeople,
       'subject_places': subjectPlaces,
       'subject_times': subjectTimes,
-      'author_name': authorName,
+      'authors': authors,
       'author_key': authorKey,
       'title': title,
       'book_key': bookKey,
       'cover_i': coverI,
+      'description': description,
     };
   }
 }
@@ -71,7 +81,7 @@ Future<List<Book>> getBooks(User user) async {
     if (querySnapshot.docs.isNotEmpty) {
       return querySnapshot.docs.map<Book>((doc) {
         final data = doc.data();
-        return Book.fromFirestore(data);
+        return Book.fromFirestore(data, doc.id); // Pass doc.id to fromFirestore
       }).toList();
     } else {
       print('No books found in the user\'s collection.');
@@ -103,10 +113,18 @@ uploadTrendingBooks(User user) async {
       if (work is Map<String, dynamic>) {
         final extractedData = {
           'title': work['title'],
+          'description': work['description'] != null &&
+                  work['description'] is Map<String, dynamic>
+              ? work['description']["value"] ?? ''
+              : '',
           'author_name': work['author_name'],
           'key': work['key'],
           'cover_i': work['cover_i'],
           'first_publish_year': work['first_publish_year'],
+          'subjects': work['subjects'] ?? [],
+          'subject_people': work['subject_people'] ?? [],
+          'subject_places': work['subject_places'] ?? [],
+          'subject_times': work['subject_times'] ?? [],
         };
         final docRef =
             trendingBooksCollection.doc(); // Create a new document reference

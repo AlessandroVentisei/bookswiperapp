@@ -1,5 +1,8 @@
+import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:bookswiperapp/home.dart';
+import 'package:bookswiperapp/main.dart';
 import 'package:bookswiperapp/theme/theme.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
@@ -14,11 +17,10 @@ class ExplorePage extends StatefulWidget {
 
 class _ExplorePage extends State<ExplorePage> {
   int cardIndex = 0;
-  final ScrollController _scrollController = ScrollController();
+  bool isProcessingSwipe = false; // Add a flag to track ongoing calls
 
   @override
   void dispose() {
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -28,195 +30,139 @@ class _ExplorePage extends State<ExplorePage> {
       cardIndex = newIndex;
     }
 
-    List<Container> cards = [
-      Container(
-        height: 400, // Fixed height for the card
-        width: double.infinity,
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(color: appTheme.colorScheme.primary),
-        child: SingleChildScrollView(
-          controller: cardIndex == 0 ? _scrollController : null,
-          clipBehavior: Clip.none,
-          child: Column(
-            spacing: 12,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedBuilder(
-                animation: _scrollController,
-                builder: (context, child) {
-                  double scale =
-                      1 - (_scrollController.offset / 1000).clamp(0, 0.5);
-                  double height = 550 *
-                      pow(scale, 2).toDouble(); // Adjust the height dynamically
-                  return Container(
-                    height: height,
-                    child: Transform.scale(
-                      scale: scale,
-                      child: child,
-                    ),
-                  );
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.network(
-                    'https://picsum.photos/200/300',
-                    width: double.infinity,
-                    fit: BoxFit.fitHeight,
-                  ),
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                spacing: 12,
-                children: [
-                  Text("1984", style: appTheme.textTheme.headlineMedium),
-                  Text("George Orwell",
-                      style: appTheme.textTheme.headlineSmall),
-                ],
-              ),
-              Text(
-                  "Nineteen Eighty-Four, often referred to as 1984, is a dystopian social science fiction novel by the English novelist George Orwell.",
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ),
-      Container(
-        height: 400, // Fixed height for the card
-        width: double.infinity,
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(color: appTheme.colorScheme.primary),
-        child: SingleChildScrollView(
-          controller: cardIndex == 1 ? _scrollController : null,
-          clipBehavior: Clip.none,
-          child: Column(
-            spacing: 12,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AnimatedBuilder(
-                animation: _scrollController,
-                builder: (context, child) {
-                  // Adjust the height dynamically
-                  return Container(
-                    height: 500,
-                    child: Transform.scale(
-                      scale: 1,
-                      child: child,
-                    ),
-                  );
-                },
-                child: AnimatedBuilder(
-                  animation: _scrollController,
-                  builder: (context, child) {
-                    // Adjust the height dynamically
-                    return Container(
-                      height: 500,
-                      child: Transform.scale(
-                        scale: 1,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Image.network('https://picsum.photos/200/300',
-                          width: double.infinity, fit: BoxFit.fill)),
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                spacing: 12,
-                children: [
-                  Text("1984", style: appTheme.textTheme.headlineMedium),
-                  Text("George Orwell",
-                      style: appTheme.textTheme.headlineSmall),
-                ],
-              ),
-              Text(
-                  "Nineteen Eighty-Four, often referred to as 1984, is a dystopian social science fiction novel by the English novelist George Orwell.",
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-              Text(
-                  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-                  style: appTheme.textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ),
-    ];
+    Future<List<Book>> _loadBooks() async {
+      return await getBooks(FirebaseAuth.instance.currentUser!);
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        scrolledUnderElevation: 10,
-        elevation: 0,
-        shadowColor: Colors.black45,
-        title: Text(
-          'Explore Books',
-          style: appTheme.textTheme.headlineMedium,
+        appBar: AppBar(
+          scrolledUnderElevation: 10,
+          elevation: 0,
+          shadowColor: Colors.black45,
+          title: Text(
+            'Explore Books',
+            style: appTheme.textTheme.headlineMedium,
+          ),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios),
+            onPressed: () {
+              Navigator.pop(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => HomePage(),
+                ),
+              );
+            },
+          ),
         ),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios),
-          onPressed: () {
-            Navigator.pop(
-              context,
-              MaterialPageRoute(
-                builder: (context) => HomePage(),
-              ),
+        backgroundColor: appTheme.colorScheme.primary,
+        body: FutureBuilder<List<Book>>(
+          future: _loadBooks(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              print('Error in FutureBuilder: ${snapshot.error}');
+              return Center(
+                  child: Text('Error loading books. Please try again.'));
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return Center(
+                  child: Text('No books available. Please check back later.'));
+            }
+
+            List<Book> books = snapshot.data!;
+            List<Container> cards = books.map((book) {
+              return Container(
+                height: 400, // Fixed height for the card
+                width: double.infinity,
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(color: appTheme.colorScheme.primary),
+                child: SingleChildScrollView(
+                  clipBehavior: Clip.none,
+                  child: Column(
+                    spacing: 12,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      // Set a fixed height for the image
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.network(
+                          'https://covers.openlibrary.org/b/id/${book.coverI}-L.jpg',
+                          width: double.infinity,
+                          fit: BoxFit.cover, // Adjust to fit the box
+                        ),
+                      ),
+                      Column(
+                        spacing: 6,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            book.title,
+                            style: appTheme.textTheme.headlineMedium,
+                            overflow: TextOverflow.fade,
+                          ),
+                          Text(
+                            book.authors.join(", "),
+                            style: appTheme.textTheme.headlineSmall,
+                          ),
+                        ],
+                      ),
+                      Text(book.description,
+                          style: appTheme.textTheme.bodyMedium)
+                    ],
+                  ),
+                ),
+              );
+            }).toList();
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return SizedBox(
+                  height: constraints.maxHeight,
+                  width: constraints.maxWidth,
+                  child: CardSwiper(
+                    cardsCount: cards.length,
+                    numberOfCardsDisplayed: 2,
+                    backCardOffset: Offset(0, 40),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                    scale: 1.0,
+                    onSwipe: (previousIndex, currentIndex, direction) async {
+                      if (isProcessingSwipe)
+                        return false; // Prevent multiple calls
+                      isProcessingSwipe = true; // Set the flag to true
+
+                      if (direction == CardSwiperDirection.right) {
+                        try {
+                          await firebaseFunctions!
+                              .httpsCallable("likeBook")
+                              .call({
+                            "book": books[previousIndex].docId,
+                            "user": FirebaseAuth.instance.currentUser!.uid,
+                          });
+                          print("Book Liked");
+                        } catch (e) {
+                          print("Error liking book: $e");
+                        }
+                      } else if (direction == CardSwiperDirection.left) {
+                        print('Swiped right');
+                      }
+
+                      isProcessingSwipe = false; // Reset the flag
+                      return true;
+                    },
+                    cardBuilder:
+                        (context, index, percentThresholdX, percentThresholdY) {
+                      _onCardChanged(index);
+                      return cards[index];
+                    },
+                  ),
+                );
+              },
             );
           },
-        ),
-      ),
-      backgroundColor: appTheme.colorScheme.primary,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return SizedBox(
-            height: constraints.maxHeight,
-            width: constraints.maxWidth,
-            child: CardSwiper(
-              cardsCount: cards.length,
-              cardBuilder:
-                  (context, index, percentThresholdX, percentThresholdY) {
-                _onCardChanged(index);
-                return cards[index];
-              },
-            ),
-          );
-        },
-      ),
-    );
+        ));
   }
 }

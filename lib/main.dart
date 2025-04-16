@@ -1,6 +1,7 @@
 import 'package:bookswiperapp/authentication_page.dart';
 import 'package:bookswiperapp/home.dart';
 import 'package:bookswiperapp/new_user_setup.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'first_page.dart';
 import 'theme/theme.dart';
@@ -10,12 +11,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import './functions/user_checks.dart';
 
 ValueNotifier<User?> userCredential = ValueNotifier(null);
+FirebaseFunctions? firebaseFunctions;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
+  var app = await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize Firebase Functions and store the instance globally
+  firebaseFunctions = FirebaseFunctions.instanceFor(app: app);
+
   FirebaseAuth.instance.authStateChanges().listen((User? user) {
     if (user == null) {
       print('User is currently signed out!');

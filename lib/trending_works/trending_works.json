@@ -1,166 +1,330 @@
 {"works": [
-{
-"author_key": [
-"OL7422948A"
-],
-"author_name": [
-"James Clear"
-],
-"cover_edition_key": "OL36647151M",
-"cover_i": 12539702,
-"edition_count": 41,
-"first_publish_year": 2016,
-"has_fulltext": true,
-"ia": [
-"atomichabitseasy0000clea"
-],
-"ia_collection_s": "internetarchivebooks;printdisabled",
-"key": "/works/OL17930368W",
-"language": [
-"eng",
-"ind",
-"fre",
-"tur",
-"por",
-"spa"
-],
-"public_scan_b": false,
-"title": "Atomic Habits",
-"availability": {
-"status": "private",
-"available_to_browse": false,
-"available_to_borrow": false,
-"available_to_waitlist": false,
-"is_printdisabled": true,
-"is_readable": false,
-"is_lendable": false,
-"is_previewable": true,
-"identifier": "atomichabitseasy0000clea",
-"isbn": "9781847941831",
-"oclc": null,
-"openlibrary_work": "OL17930368W",
-"openlibrary_edition": "OL27918581M",
-"last_loan_date": null,
-"num_waitlist": null,
-"last_waitlist_date": null,
-"is_restricted": true,
-"is_browseable": false,
-"__src__": "core.models.lending.get_availability"
-}
-},
-{
-"author_key": [
-"OL236414A",
-"OL224036A"
-],
-"author_name": [
-"Robert Greene",
-"Joost Elffers"
-],
-"cover_edition_key": "OL24274306M",
-"cover_i": 6424160,
-"edition_count": 52,
-"first_publish_year": 1998,
-"has_fulltext": true,
-"ia": [
-"powerdie48gesetz0000robe",
-"48lawsofpow00gree",
-"48lawsofpower00greerich",
-"48lawsofpower00gree"
-],
-"ia_collection_s": "americana;delawarecountydistrictlibrary;gbell;inlibrary;internetarchivebooks;nclive;printdisabled;unclibraries",
-"key": "/works/OL1968368W",
-"language": [
-"rus",
-"tur",
-"spa",
-"ger",
-"kur",
-"eng",
-"por",
-"ara"
-],
-"lending_edition_s": "OL9036414M",
-"lending_identifier_s": "powerdie48gesetz0000robe",
-"public_scan_b": false,
-"title": "The 48 Laws of Power",
-"availability": {
-"status": "borrow_unavailable",
-"available_to_browse": false,
-"available_to_borrow": false,
-"available_to_waitlist": false,
-"is_printdisabled": true,
-"is_readable": false,
-"is_lendable": true,
-"is_previewable": true,
-"identifier": "powerdie48gesetz0000robe",
-"isbn": "9783446197596",
-"oclc": null,
-"openlibrary_work": "OL1968398W",
-"openlibrary_edition": "OL9036414M",
-"last_loan_date": null,
-"num_waitlist": null,
-"last_waitlist_date": null,
-"is_restricted": true,
-"is_browseable": false,
-"__src__": "core.models.lending.get_availability"
-}
-},
-{
-"author_key": [
-"OL14948835A"
-],
-"author_name": [
-"Eric Robertson"
-],
-"cover_i": 12009823,
-"edition_count": 3,
-"first_publish_year": 2019,
-"has_fulltext": false,
-"key": "/works/OL25312237W",
-"language": [
-"ind"
-],
-"public_scan_b": false,
-"title": "Control Your Mind and Master Your Feelings"
-},
-{
-"author_key": [
-"OL13815321A"
-],
-"author_name": [
-"Rithvik Singh"
-],
-"cover_edition_key": "OL52209936M",
-"cover_i": 14638562,
-"edition_count": 1,
-"first_publish_year": 2024,
-"has_fulltext": false,
-"key": "/works/OL38382569W",
-"language": [
-"eng"
-],
-"public_scan_b": false,
-"title": "I Don't Love You Anymore"
-},
-{
-"author_key": [
-"OL9180803A"
-],
-"author_name": [
-"Ana Huang"
-],
-"cover_i": 12940491,
-"edition_count": 13,
-"first_publish_year": 2021,
-"has_fulltext": false,
-"key": "/works/OL24390422W",
-"language": [
-"spa",
-"eng"
-],
-"public_scan_b": false,
-"title": "Twisted Love"
-}
+    {
+        "description": {
+        "type": "/type/text",
+        "value": "No matter your goals, Atomic Habits offers a proven framework for improving every day. James Clear, one of the world's leading experts on habit formation, reveals practical strategies that will teach you exactly how to form good habits, break bad ones, and master the tiny behaviors that lead to remarkable results."
+        },
+        "subjects": [
+        "Habit",
+        "Habit breaking",
+        "Behavior modification",
+        "Self-actualization (psychology)",
+        "Business",
+        "psychology",
+        "Personal Growth",
+        "New York Times bestseller",
+        "BUSINESS & ECONOMICS / Organizational Behavior",
+        "PSYCHOLOGY / Social Psychology",
+        "SELF-HELP / Personal Growth / General.",
+        "Self-help / personal growth / general"
+        ],
+        "key": "/works/OL17930368W",
+        "title": "Atomic Habits",
+        "authors": [
+        {
+        "author": {
+        "key": "/authors/OL7422948A"
+        },
+        "type": {
+        "key": "/type/author_role"
+        }
+        }
+        ],
+        "type": {
+        "key": "/type/work"
+        },
+        "covers": [
+        12539702,
+        10457042,
+        10958382,
+        8260535,
+        12225471,
+        10510589,
+        11646973,
+        13249133,
+        13966601,
+        13480646
+        ],
+        "links": [
+        {
+        "title": "GoodReads",
+        "url": "https://www.goodreads.com/book/show/40121378-atomic-habits",
+        "type": {
+        "key": "/type/link"
+        }
+        }
+        ],
+        "latest_revision": 66,
+        "revision": 66,
+        "created": {
+        "type": "/type/datetime",
+        "value": "2018-10-20T04:53:43.040839"
+        },
+        "last_modified": {
+        "type": "/type/datetime",
+        "value": "2024-12-23T09:10:28.372342"
+        }
+        },
+        {
+            "key": "/works/OL1968368W",
+            "title": "The 48 Laws of Power",
+            "first_publish_date": "September 9, 2005",
+            "authors": [
+            {
+            "author": {
+            "key": "/authors/OL236414A"
+            },
+            "type": {
+            "key": "/type/author_role"
+            }
+            },
+            {
+            "author": {
+            "key": "/authors/OL224036A"
+            },
+            "type": {
+            "key": "/type/author_role"
+            }
+            }
+            ],
+            "type": {
+            "key": "/type/work"
+            },
+            "description": {
+            "type": "/type/text",
+            "value": "Amoral, cunning, ruthless, and instructive, this piercing work distills three thousand years of the history of power in to forty-eight well explicated laws. As attention--grabbing in its design as it is in its content, this bold volume outlines the laws of power in their unvarnished essence, synthesizing the philosophies of Machiavelli, Sun-tzu, Carl von Clausewitz, and other great thinkers. Some laws teach the need for prudence (\"Law 1: Never Outshine the Master\"), the virtue of stealth (\"Law 3: Conceal Your Intentions\"), and many demand the total absence of mercy (\"Law 15: Crush Your Enemy Totally\"), but like it or not, all have applications in real life. Illustrated through the tactics of Queen Elizabeth I, Henry Kissinger, P. T. Barnum, and other famous figures who have wielded--or been victimized by--power, these laws will fascinate any reader interested in gaining, observing, or defending against ultimate control."
+            },
+            "covers": [
+            6424160,
+            402210,
+            2005253,
+            917637,
+            10833844,
+            12450667,
+            11416998,
+            12074278,
+            1051901,
+            1007858,
+            917731,
+            7565118,
+            9024888,
+            9111656,
+            9160586,
+            12369503,
+            12387003,
+            12496847,
+            13202281,
+            5229846,
+            13330825,
+            13865141,
+            13194071,
+            14047635,
+            14047636,
+            13306939,
+            12301794
+            ],
+            "lc_classifications": [
+            "BD438 .G74 1998"
+            ],
+            "dewey_number": [
+            "303.3"
+            ],
+            "subjects": [
+            "Business",
+            "Control (Psychology)",
+            "Contrôle (Psychologie)",
+            "Pouvoir (Morale)",
+            "Nonfiction",
+            "Power (Philosophy)",
+            "Self-Improvement",
+            "Conduct of life",
+            "Contrãole (Psychologie",
+            "Political Science",
+            "Abridged Audio - Misc. Nonfiction",
+            "Politics/International Relations",
+            "History & Theory - General",
+            "Political Science / History & Theory",
+            "Audiobooks",
+            "Political science & theory",
+            "Psychology",
+            "Contrôle (Psychologie.)",
+            "Pouvoir (Morale.)",
+            "BUSINESS & ECONOMICS",
+            "Leadership",
+            "Motivational",
+            "SELF-HELP",
+            "Personal Growth",
+            "Success",
+            "Macht",
+            "Nutzung",
+            "Gesellschaft",
+            "Zwischenmenschliche Beziehung",
+            "Power (Social sciences)",
+            "Power (Psychology)",
+            "Control (Philosophy)",
+            "poder",
+            "influência",
+            "manipulação",
+            "liderança",
+            "ambição",
+            "jogo",
+            "persuasão",
+            "Philosophy and ethics"
+            ],
+            "first_sentence": {
+            "type": "/type/text",
+            "value": "Nicolas Fouquet, Louis XIV's finance minister in the first years of his reign, was a generous man who loved lavish parties, pretty women, and poetry."
+            },
+            "subject_times": [
+            "Ao longo de toda história"
+            ],
+            "latest_revision": 66,
+            "revision": 66,
+            "created": {
+            "type": "/type/datetime",
+            "value": "2009-12-09T22:38:30.270940"
+            },
+            "last_modified": {
+            "type": "/type/datetime",
+            "value": "2024-12-23T09:10:28.372342"
+            }
+            },
+            {
+                "title": "Control Your Mind and Master Your Feelings",
+                "authors": [
+                {
+                "author": {
+                "key": "/authors/OL14948835A"
+                },
+                "type": {
+                "key": "/type/author_role"
+                }
+                }
+                ],
+                "key": "/works/OL25312237W",
+                "type": {
+                "key": "/type/work"
+                },
+                "covers": [
+                12009823
+                ],
+                "subjects": [
+                "Self-help",
+                "personal development",
+                "emotional intelligence",
+                "mindfulness",
+                "meditation",
+                "cognitive behavioral therapy",
+                "CBT",
+                "anxiety",
+                "depression",
+                "anger management",
+                "stress management",
+                "positive thinking",
+                "self-control",
+                "mental health",
+                "emotional well-being"
+                ],
+                "description": {
+                "type": "/type/text",
+                "value": "We oftentimes look towards the outside world to find the roots of our problems. However, most of the times, we should be looking inwards. Our mind and our emotions determine our state of being in the present moment. If those aspects are left unchecked, we can get easily overwhelmed and are left feeling unfulfilled every single day. \r\n\r\nThis book contains two manuscripts designed to help you discover the best and most efficient way to control your thoughts and master your feelings.\r\n\r\nIn the first part of the bundle called Breaking Overthinking, you will discover:\r\n\r\nHow overthinking can be detrimental to your social life. \r\nThe hidden dangers of overthinking and what can happen to you if it’s left untreated. \r\nHow to declutter your mind from all the noise of the modern world. \r\nHow overthinking affects your body, your energy levels, and your everyday mood. \r\nHow your surroundings affect your state of mind, and what you NEED to do in order to break out of that state. \r\nBad habits we perform every day and don’t even realize are destroying our sanity (and how to overcome them properly). \r\nHow to cut out toxic people from your life, which cloud your judgment and make you feel miserable."
+                },
+                "latest_revision": 13,
+                "revision": 13,
+                "created": {
+                "type": "/type/datetime",
+                "value": "2021-09-27T18:56:20.746460"
+                },
+                "last_modified": {
+                "type": "/type/datetime",
+                "value": "2024-12-23T09:10:28.372342"
+                }
+                },
+                {
+                    "type": {
+                    "key": "/type/work"
+                    },
+                    "title": "I Don't Love You Anymore",
+                    "authors": [
+                    {
+                    "author": {
+                    "key": "/authors/OL13815321A"
+                    },
+                    "type": {
+                    "key": "/type/author_role"
+                    }
+                    }
+                    ],
+                    "key": "/works/OL38382569W",
+                    "subjects": [
+                    "Poetry",
+                    "Love poetry"
+                    ],
+                    "latest_revision": 3,
+                    "revision": 3,
+                    "created": {
+                    "type": "/type/datetime",
+                    "value": "2024-06-21T16:42:15.398865"
+                    },
+                    "last_modified": {
+                    "type": "/type/datetime",
+                    "value": "2024-09-28T09:19:08.782782"
+                    }
+                    },
+                    {
+                        "description": {
+                        "type": "/type/text",
+                        "value": "He has a heart of ice … but for her, he'd burn the world. Alex Volkov is a devil blessed with the face of an angel and cursed with a past he can't escape. Driven by a tragedy that has haunted him for most of his life, his ruthless pursuits for success and vengeance leave little room for matters of the heart. But when he's forced to look after his best friend's sister, he starts to feel something in his chest: A crack. A melt. A fire that could end his world as he knew it. *** Ava Chen is a free spirit trapped by nightmares of a childhood she can't remember. But despite her broken past, she's never stopped seeing the beauty in the world … including the heart beneath the icy exterior of a man she shouldn't want. Her brother's best friend. Her neighbor. Her savior and her downfall. Theirs is a love that was never supposed to happen - but when it does, it unleashes secrets that could destroy them both … and everything they hold dear. Twisted Love is a brother's best friend/opposites attract romance with a hint of suspense. It's book one in the Twisted series, but can be read as a standalone. WARNING: This book contains a possessive alpha/antihero, explicit sexual content, and profanity. No cheating or ménage, but if you're looking for a traditionally sweet, loveable hero, this is not the book for you. Recommended for 18+."
+                        },
+                        "type": {
+                        "key": "/type/work"
+                        },
+                        "title": "Twisted Love",
+                        "authors": [
+                        {
+                        "author": {
+                        "key": "/authors/OL9180803A"
+                        },
+                        "type": {
+                        "key": "/type/author_role"
+                        }
+                        }
+                        ],
+                        "covers": [
+                        12940491,
+                        13379346,
+                        10926303,
+                        13180424
+                        ],
+                        "key": "/works/OL24390422W",
+                        "subjects": [
+                        "Fiction, romance, multicultural & interracial",
+                        "Fiction, romance, new adult",
+                        "Fiction, romance, contemporary",
+                        "nyt:combined-print-and-e-book-fiction=2023-07-02",
+                        "New York Times bestseller",
+                        "Romance",
+                        "contemporary romance",
+                        "new adult romance",
+                        "brother's best friend",
+                        "forbidden love",
+                        "dark romance",
+                        "grumpy-sunshine",
+                        "angst",
+                        "love triangle",
+                        "self-discovery",
+                        "redemption"
+                        ],
+                        "latest_revision": 21,
+                        "revision": 21,
+                        "created": {
+                        "type": "/type/datetime",
+                        "value": "2021-05-03T14:07:15.268253"
+                        },
+                        "last_modified": {
+                        "type": "/type/datetime",
+                        "value": "2024-08-13T03:24:43.357520"
+                        }
+                        }
 ]
 }
