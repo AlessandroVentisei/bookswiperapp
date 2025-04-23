@@ -88,10 +88,24 @@ class _ExplorePage extends State<ExplorePage> {
                       // Set a fixed height for the image
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: Image.network(
-                          'https://covers.openlibrary.org/b/id/${book.coverI}-L.jpg',
-                          width: double.infinity,
-                          fit: BoxFit.cover, // Adjust to fit the box
+                        child: SizedBox(
+                          width: 356,
+                          height: 522,
+                          child: Image.network(
+                            'https://covers.openlibrary.org/b/id/${book.coverI}-L.jpg',
+                            width: 356,
+                            height: 522,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ),
                       Column(
@@ -130,27 +144,20 @@ class _ExplorePage extends State<ExplorePage> {
                         const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                     scale: 1.0,
                     onSwipe: (previousIndex, currentIndex, direction) async {
-                      if (isProcessingSwipe)
-                        return false; // Prevent multiple calls
-                      isProcessingSwipe = true; // Set the flag to true
-
                       if (direction == CardSwiperDirection.right) {
                         try {
-                          await firebaseFunctions!
-                              .httpsCallable("likeBook")
-                              .call({
+                          firebaseFunctions!.httpsCallable("likeBook").call({
                             "book": books[previousIndex].docId,
                             "user": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Book Liked");
+                          return true;
                         } catch (e) {
                           print("Error liking book: $e");
                         }
                       } else if (direction == CardSwiperDirection.left) {
                         print('Swiped right');
                       }
-
-                      isProcessingSwipe = false; // Reset the flag
                       return true;
                     },
                     cardBuilder:

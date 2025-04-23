@@ -35,7 +35,6 @@ class Book {
 
   // Factory method to create a Book from Firestore data
   factory Book.fromFirestore(Map<String, dynamic> data, String docId) {
-    print(data); // Debugging: Print the Firestore data
     return Book(
       subjects: List<String>.from(data['subjects'] ?? []),
       subjectPeople: List<String>.from(data['subject_people'] ?? []),
