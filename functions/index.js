@@ -108,6 +108,8 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
     // it will update the book in the queue with the new info
     const userId = event.params.userId; // Extract userId from the document path
     const bookId = event.params.bookId; // Extract bookId from the document path
+    // Get the queue reference
+    const queueRef = db.collection("users").doc(userId).collection("books");
     const bookDocRef = queueRef.doc(bookId);
     const bookDoc = await bookDocRef.get();
     if (!bookDoc.exists) {
@@ -123,26 +125,59 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
             subjects: detailedBookData.subjects || [],
             description: detailedBookData.description?.value || "",
         });
-        logger.log(`Enriched book data for user ${userId} and book ${bookId}`);
+
+        const editions = await axios.get(`https://openlibrary.org${bookData.workKey}/editions.json`);
+        const editionsData = editions.data;
+        // extract ISBN13, languages.key, subtitle, published_date, publisher, and subjects from the first edition.
+        const firstEdition = editionsData.entries[0];
+        const isbn13 = firstEdition?.isbn_13 || [];
+        const languages = firstEdition?.languages || [];
+        const subtitle = firstEdition?.subtitle || "";
+        const publishedDate = firstEdition?.publish_date || "";
+        const publisher = firstEdition?.publishers || [];
+        const subjects = firstEdition?.subjects || [];
+        const pagination = firstEdition?.pagination || "";
+        const languageKeys = languages.map((language) => language.key);
+        // delete book from queue if there is no isbn13 or the language.key doesn't contain "/languages/eng"
+        if (isbn13.length === 0 || languageKeys.length === 0) {
+            await bookDocRef.delete();
+            logger.log(`Book document deleted for user ${userId} and book ${bookId}`);
+            return;
+        }
+        // update the book document with the new data
+        await bookDocRef.update({
+            isbn13: isbn13,
+            languages: languageKeys,
+            subtitle: subtitle,
+            publishedDate: publishedDate,
+            publisher: publisher,
+            subjects_edition: subjects,
+            pagination: pagination,
+        });
+        logger.log(`Book document enriched for user ${userId} and book ${bookId}`);
     } catch (error) {
-        logger.error(`Error enriching book data for user ${userId} and book ${bookId}`, error);
+        logger.error(`Error enriching book document for user ${userId} and book ${bookId}`, error);
     }
 }
 );
 
-exports.fetchQueue = onDocumentDeleted("users/{userId}/books/{bookId}", async (event) => {
+exports.fetchBooks = onCall(async (request) => {
     // this function will handle the fetching of books
     // it will fetch books from OpenLibrary API based on the users subject keywords
     // it will return a list of books to the user and check if they are already in the queue.
     // It needs to be called in the event that there are less than 10 books in the explore queue.
-    const userId = event.params.userId; // Extract userId from the document path
+    // the app side will call this function after every 5 swipes has taken place.
+    const userId = request.userId; // Extract userId from the request
     const userDocRef = db.collection("users").doc(userId);
     queueRef = db.collection("users").doc(userId).collection("books");
     likedBooksRef = db.collection("users").doc(userId).collection("likedBooks");
     dislikedBooksRef = db.collection("users").doc(userId).collection("dislikedBooks")
     //check if the queue has less than 10 books
     const queueSnapshot = await queueRef.get();
-    if (queueSnapshot.size >= 10) {
+    const likedBooksSnapshot = await likedBooksRef.get();
+    const dislikedBooksSnapshot = await dislikedBooksRef.get();
+    // Check if the queue has less than 10 books
+    if (queueSnapshot.docs.length >= 10) {
         logger.log(`User ${userId} already has enough books in the queue.`);
         return;
     }
@@ -157,6 +192,14 @@ exports.fetchQueue = onDocumentDeleted("users/{userId}/books/{bookId}", async (e
         logger.log(`No subject keywords found for user ${userId}`);
         return;
     }
+    if (userData.isUpdating == true || userData.isUpdating == "true") {
+        logger.log(`User ${userId} is already updating the queue. ${userData.isUpdating}`);
+        //stop the function.
+        return;
+    }
+    // Set the isUpdating flag to true
+    await userDocRef.update({ isUpdating: true });
+
     // Fetch books based on subject keywords
     const books = [];
     for (const keyword of subjectKeywords) {
@@ -168,13 +211,12 @@ exports.fetchQueue = onDocumentDeleted("users/{userId}/books/{bookId}", async (e
             const formattedBooks = bookData.map((book) => ({
                 title: book.title,
                 authors: book.authors.map((author)=>author?.name) || [],
-                author_key: book.authors.map((author)=>author?.key) || [],
+                author_key: book.authors.map((author)=>author?.key) || "",
                 publishYear: book.first_publish_year || null,
                 coverEditionKey: book.cover_edition_key || null,
-                author_key: book.author_key || [],
                 coverId: book.cover_id || null,
                 workKey: book.key,
-                subjects: book.subjects || [],
+                subjects: book.subject || [],
                 description: book.description?.value || "",
             }));
             books.push(...formattedBooks);
@@ -184,19 +226,36 @@ exports.fetchQueue = onDocumentDeleted("users/{userId}/books/{bookId}", async (e
     }
     // Filter out books that are already in the queue
     const existingQueueBooks = queueSnapshot.docs.map((doc) => doc.data().workKey);
-    const existingLikedBooks = queueSnapshot.docs.map((doc) => doc.data().workKey);
-    const existingDislikedBooks = queueSnapshot.docs.map((doc) => doc.data().workKey);
+    const existingLikedBooks = likedBooksSnapshot.docs.map((doc) => doc.data().workKey);
+    const existingDislikedBooks = dislikedBooksSnapshot.docs.map((doc) => doc.data().workKey);
+    // Combine all existing books
     const existingBooks = [...existingQueueBooks, ...existingLikedBooks, ...existingDislikedBooks];
-    // Filter here.
+    // Filter.
     const newBooks = books.filter((book) => !existingBooks.includes(book.workKey));
+    // filter out books which have no description
+    const filteredBooks = newBooks.filter((book) => book.description !== "");
+    //randomize the new books
+    filteredBooks.sort(() => Math.random() - 0.5);
+    // Limit to 10 books
+    filteredBooks.splice(10);
+    // Check if there are any new books to add
+    if (filteredBooks.length === 0) {
+        logger.log(`No new books found for user ${userId}`);
+        // Set the isUpdating flag to false
+        await userDocRef.update({ isUpdating: false });
+        return;
+    }
     // Store each book as a separate document
     const batch = db.batch();
-    newBooks.forEach((book) => {
+    filteredBooks.forEach((book) => {
         const bookDocRef = queueRef.doc(); // Auto-generate document ID
         batch.set(bookDocRef, book);
     });
     await batch.commit();
-    logger.log(`Fetched and stored ${newBooks.length} new books for user ${userId}`);
+    // Set the isUpdating flag to false
+    await userDocRef.update({ isUpdating: false });
+    // Log the number of new books added
+    logger.log(`Fetched and stored ${filteredBooks.length} new books for user ${userId}`);
     return { message: "Books fetched and stored successfully." };
     
 });

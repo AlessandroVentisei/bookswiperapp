@@ -40,7 +40,7 @@ class _ExplorePage extends State<ExplorePage> {
           elevation: 0,
           shadowColor: Colors.black45,
           title: Text(
-            'Explore Books',
+            'Explore',
             style: appTheme.textTheme.headlineMedium,
           ),
           leading: IconButton(
@@ -100,7 +100,9 @@ class _ExplorePage extends State<ExplorePage> {
                               if (loadingProgress == null) return child;
                               return Center(
                                 child: CircularProgressIndicator(
-                                  color: Colors.white,
+                                  color: appTheme.colorScheme.secondary,
+                                  backgroundColor:
+                                      appTheme.colorScheme.secondary,
                                   strokeWidth: 2,
                                 ),
                               );
@@ -151,12 +153,29 @@ class _ExplorePage extends State<ExplorePage> {
                             "user": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Book Liked");
+                          firebaseFunctions!.httpsCallable("fetchBooks").call({
+                            "user": FirebaseAuth.instance.currentUser!.uid,
+                          });
+                          print("Books fetched");
                           return true;
                         } catch (e) {
                           print("Error liking book: $e");
                         }
                       } else if (direction == CardSwiperDirection.left) {
-                        print('Swiped right');
+                        try {
+                          firebaseFunctions!.httpsCallable("dislikeBook").call({
+                            "book": books[previousIndex].docId,
+                            "user": FirebaseAuth.instance.currentUser!.uid,
+                          });
+                          print("Book disliked");
+                          firebaseFunctions!.httpsCallable("fetchBooks").call({
+                            "user": FirebaseAuth.instance.currentUser!.uid,
+                          });
+                          print("Books fetched");
+                          return true;
+                        } catch (e) {
+                          print("Error liking book: $e");
+                        }
                       }
                       return true;
                     },
