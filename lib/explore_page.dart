@@ -2,6 +2,7 @@ import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:bookswiperapp/home.dart';
 import 'package:bookswiperapp/main.dart';
 import 'package:bookswiperapp/theme/theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -30,47 +31,84 @@ class _ExplorePage extends State<ExplorePage> {
       cardIndex = newIndex;
     }
 
-    Future<List<Book>> _loadBooks() async {
-      return await getBooks(FirebaseAuth.instance.currentUser!);
+    final CardSwiperController _swiperController = CardSwiperController();
+    List<Book>? _previousBooks;
+
+    // Stream to listen to real-time updates from Firestore
+    Stream<List<Book>> _booksStream() {
+      final user = FirebaseAuth.instance.currentUser!;
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('books')
+          .orderBy('index', descending: false);
+      return userRef.snapshots().map((snapshot) => snapshot.docs
+          .map((doc) => Book.fromFirestore(doc.data(), doc.id))
+          .toList());
     }
 
     return Scaffold(
         appBar: AppBar(
-          scrolledUnderElevation: 10,
-          elevation: 0,
-          shadowColor: Colors.black45,
-          title: Text(
-            'Explore',
-            style: appTheme.textTheme.headlineMedium,
-          ),
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios),
-            onPressed: () {
-              Navigator.pop(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => HomePage(),
-                ),
-              );
-            },
-          ),
-        ),
+            scrolledUnderElevation: 10,
+            elevation: 0,
+            shadowColor: Colors.black45,
+            title: Text(
+              'Explore',
+              style: appTheme.textTheme.headlineMedium,
+            ),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios),
+              onPressed: () {
+                Navigator.pop(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HomePage(),
+                  ),
+                );
+              },
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.upload),
+                onPressed: () {
+                  firebaseFunctions!.httpsCallable("fetchBooks").call({
+                    "userId": FirebaseAuth.instance.currentUser!.uid,
+                  }).then((value) {
+                    print("Books fetched successfully");
+                  }).catchError((error) {
+                    print("Error fetching books: $error");
+                  });
+                },
+              ),
+            ]),
         backgroundColor: appTheme.colorScheme.primary,
-        body: FutureBuilder<List<Book>>(
-          future: _loadBooks(),
+        body: StreamBuilder<List<Book>>(
+          stream: _booksStream(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator());
             } else if (snapshot.hasError) {
-              print('Error in FutureBuilder: ${snapshot.error}');
+              print('Error in StreamBuilder: \\${snapshot.error}');
               return Center(
                   child: Text('Error loading books. Please try again.'));
             } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              firebaseFunctions!.httpsCallable("fetchBooks").call({
+                "userId": FirebaseAuth.instance.currentUser!.uid,
+              });
               return Center(
-                  child: Text('No books available. Please check back later.'));
+                child: Text('No books available. Please check back later.'),
+              );
             }
 
             List<Book> books = snapshot.data!;
+            // Reset swiper index if the books list changed length (e.g., after swipe)
+            if (_previousBooks != null &&
+                books.length != _previousBooks!.length) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _swiperController.moveTo(0);
+              });
+            }
+            _previousBooks = List<Book>.from(books);
             List<Container> cards = books.map((book) {
               return Container(
                 height: 400, // Fixed height for the card
@@ -139,8 +177,9 @@ class _ExplorePage extends State<ExplorePage> {
                   height: constraints.maxHeight,
                   width: constraints.maxWidth,
                   child: CardSwiper(
+                    controller: _swiperController, // Add this line
                     cardsCount: cards.length,
-                    numberOfCardsDisplayed: 2,
+                    numberOfCardsDisplayed: books.length > 3 ? 3 : books.length,
                     backCardOffset: Offset(0, 40),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
@@ -154,7 +193,7 @@ class _ExplorePage extends State<ExplorePage> {
                           });
                           print("Book Liked");
                           firebaseFunctions!.httpsCallable("fetchBooks").call({
-                            "user": FirebaseAuth.instance.currentUser!.uid,
+                            "userId": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Books fetched");
                           return true;
@@ -169,7 +208,7 @@ class _ExplorePage extends State<ExplorePage> {
                           });
                           print("Book disliked");
                           firebaseFunctions!.httpsCallable("fetchBooks").call({
-                            "user": FirebaseAuth.instance.currentUser!.uid,
+                            "userId": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Books fetched");
                           return true;

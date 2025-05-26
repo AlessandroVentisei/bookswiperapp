@@ -65,7 +65,7 @@ class Book {
       'author_key': authorKey,
       'title': title,
       'book_key': bookKey,
-      'cover_i': coverI,
+      'coverI': coverI,
       'description': description,
     };
   }
@@ -111,19 +111,21 @@ uploadTrendingBooks(User user) async {
     for (var work in works) {
       if (work is Map<String, dynamic>) {
         final extractedData = {
-          'title': work['title'],
+          'title': work['title'] ?? '',
           'description': work['description'] != null &&
                   work['description'] is Map<String, dynamic>
-              ? work['description']["value"] ?? ''
-              : '',
-          'author_name': work['author_name'],
-          'key': work['key'],
-          'cover_i': work['cover_i'],
-          'first_publish_year': work['first_publish_year'],
+              ? work['description']['value'] ?? ''
+              : (work['description'] ?? ''),
+          'authors': work['authors'] != null && work['authors'] is List
+              ? work['authors']
+                  .map((author) => author['author']['key']?.toString() ?? '')
+                  .toList()
+              : [],
+          'workKey': work['key'] ?? '',
+          'coverI': work['covers'] != null && work['covers'] is List
+              ? work['covers'][0]
+              : 0,
           'subjects': work['subjects'] ?? [],
-          'subject_people': work['subject_people'] ?? [],
-          'subject_places': work['subject_places'] ?? [],
-          'subject_times': work['subject_times'] ?? [],
         };
         final docRef =
             trendingBooksCollection.doc(); // Create a new document reference

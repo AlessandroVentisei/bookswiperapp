@@ -93,16 +93,6 @@ class _HomePage extends State<HomePage> {
                   },
                   child: Text('Sign Out'),
                 ),
-                ElevatedButton(
-                  onPressed: () async {
-                    await firebaseFunctions!.httpsCallable('userSetup').call(
-                      {
-                        'user': FirebaseAuth.instance.currentUser?.uid,
-                      },
-                    );
-                  },
-                  child: Text('Add Books'),
-                ),
               ],
             ),
           ),

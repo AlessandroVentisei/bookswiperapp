@@ -1,12 +1,3 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
 const {onRequest, onCall, HttpsError} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const axios = require("axios"); // Add axios for HTTP requests
@@ -14,6 +5,8 @@ const { getFirestore } = require("firebase-admin/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const functions = require("firebase-functions");
 const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
+const { user } = require("firebase-functions/v1/auth");
+const { getMostRecentEdition, parseYear } = require("./edition_functions.js");
 
 initializeApp(); // Initialize Firebase Admin SDK
 const db = getFirestore(); // Get Firestore instance
@@ -128,9 +121,18 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
 
         const editions = await axios.get(`https://openlibrary.org${bookData.workKey}/editions.json`);
         const editionsData = editions.data;
-        // extract ISBN13, languages.key, subtitle, published_date, publisher, and subjects from the first edition.
-        const firstEdition = editionsData.entries[0];
+        // extract ISBN13, languages.key, subtitle, published_date, publisher, and subjects from the most recently published edition.
+        if (!editionsData || !editionsData.entries || editionsData.entries.length === 0) {
+            logger.log(`No editions found for book ${bookId} for user ${userId}`);
+            return;
+        }
+        // Get the first edition (most recent) from the editions data
+        // select entry with the most publish_date, and remove slashes or dashes from the field.
+        const firstEdition = getMostRecentEdition(editionsData.entries);
+        
+        // Get the first edition
         const isbn13 = firstEdition?.isbn_13 || [];
+        const cover = firstEdition?.covers[0] || "";
         const languages = firstEdition?.languages || [];
         const subtitle = firstEdition?.subtitle || "";
         const publishedDate = firstEdition?.publish_date || "";
@@ -139,7 +141,7 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
         const pagination = firstEdition?.pagination || "";
         const languageKeys = languages.map((language) => language.key);
         // delete book from queue if there is no isbn13 or the language.key doesn't contain "/languages/eng"
-        if (isbn13.length === 0 || languageKeys.length === 0) {
+        if (isbn13.length === 0) {
             await bookDocRef.delete();
             logger.log(`Book document deleted for user ${userId} and book ${bookId}`);
             return;
@@ -147,6 +149,9 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
         // update the book document with the new data
         await bookDocRef.update({
             isbn13: isbn13,
+            // if cover is empty leave it as is, otherwise set it to the cover id.
+            coverId: cover ? cover : bookData.coverId,
+            language_keys: languageKeys,
             languages: languageKeys,
             subtitle: subtitle,
             publishedDate: publishedDate,
@@ -167,11 +172,11 @@ exports.fetchBooks = onCall(async (request) => {
     // it will return a list of books to the user and check if they are already in the queue.
     // It needs to be called in the event that there are less than 10 books in the explore queue.
     // the app side will call this function after every 5 swipes has taken place.
-    const userId = request.userId; // Extract userId from the request
+    const userId = request.data.userId; // Extract userId from the request
     const userDocRef = db.collection("users").doc(userId);
-    queueRef = db.collection("users").doc(userId).collection("books");
-    likedBooksRef = db.collection("users").doc(userId).collection("likedBooks");
-    dislikedBooksRef = db.collection("users").doc(userId).collection("dislikedBooks")
+    const queueRef = db.collection("users").doc(userId).collection("books");
+    const likedBooksRef = db.collection("users").doc(userId).collection("likedBooks");
+    const dislikedBooksRef = db.collection("users").doc(userId).collection("dislikedBooks")
     //check if the queue has less than 10 books
     const queueSnapshot = await queueRef.get();
     const likedBooksSnapshot = await likedBooksRef.get();
@@ -188,6 +193,12 @@ exports.fetchBooks = onCall(async (request) => {
     }
     const userData = userDoc.data();
     const subjectKeywords = userData.subjectKeywords.slice(0, 3) || [];
+    var userCurrentIndex = userData.currentIndex || 0;
+    // if no user current index is set, set it to 0
+    if (userCurrentIndex === undefined || userCurrentIndex === null) {
+        await userDocRef.update({ currentIndex: 0 });
+        userCurrentIndex = 0;
+    }
     if (subjectKeywords.length === 0) {
         logger.log(`No subject keywords found for user ${userId}`);
         return;
@@ -203,25 +214,55 @@ exports.fetchBooks = onCall(async (request) => {
     // Fetch books based on subject keywords
     const books = [];
     for (const keyword of subjectKeywords) {
-        const openLibUrl = `https://openlibrary.org/subjects/${keyword}.json?details=true`;
-        try {
-            const response = await axios.get(openLibUrl);
-            const bookData = response.data['works'] || [];
-            // Map to extract relevant fields
-            const formattedBooks = bookData.map((book) => ({
-                title: book.title,
-                authors: book.authors.map((author)=>author?.name) || [],
-                author_key: book.authors.map((author)=>author?.key) || "",
-                publishYear: book.first_publish_year || null,
-                coverEditionKey: book.cover_edition_key || null,
-                coverId: book.cover_id || null,
-                workKey: book.key,
-                subjects: book.subject || [],
-                description: book.description?.value || "",
-            }));
-            books.push(...formattedBooks);
-        } catch (error) {
-            logger.error(`Error fetching books for keyword ${keyword}`, error);
+        // replace spaces with underscores in the keyword
+        const formattedKeyword = keyword.replace(/\s+/g, "_").toLowerCase();
+        const openLibUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true`;
+        const keywordResponse = await axios.get(openLibUrl);
+        logger.log(`Fetching books for keyword: ${keywordResponse.data["subjects"]}`);
+        // look at the related subjects.
+        const relatedSubjects = keywordResponse.data.subjects || [];
+        // check if any of these subjects have been fetched before.
+        userData.fetchedSubjects = userData.fetchedSubjects || [];
+        logger.log(relatedSubjects);
+        const newSubjects = relatedSubjects.filter((subject) => !userData.fetchedSubjects.includes(subject));
+        // If there are no new subjects, skip to the next keyword
+        if (newSubjects.length === 0) {
+            logger.log(`No new subjects found for keyword ${keyword} for user ${userId}`);
+            continue;
+        }
+        // shuffle the new subjects and splice to 3 subjects
+        newSubjects.sort(() => Math.random() - 0.5);
+        newSubjects.splice(3);
+        // Update the fetchedSubjects in userData
+        userData.fetchedSubjects = [...userData.fetchedSubjects, ...newSubjects];
+        // Update the user document with the new fetchedSubjects
+        await userDocRef.update({ fetchedSubjects: userData.fetchedSubjects });
+        // Fetch books for each new subject
+        for (const subject of newSubjects) {
+            const subjectUrl = `https://openlibrary.org/${subject.key}.json?details=true`;
+            try {
+                const subjectResponse = await axios.get(subjectUrl);
+                const bookData = subjectResponse.data['works'] || [];
+                // Map to extract relevant fields
+                const formattedBooks = bookData.map((book, indx) => ({
+                    title: book.title,
+                    authors: book.authors.map((author) => author?.name) || [],
+                    author_key: book.authors.map((author) => author?.key) || "",
+                    publishYear: book.first_publish_year || null,
+                    coverEditionKey: book.cover_edition_key || null,
+                    coverId: book.cover_id || null,
+                    workKey: book.key,
+                    subjects: book.subject || [],
+                    description: book.description?.value || "",
+                    createdAt: new Date(),
+                    index: userCurrentIndex + indx // Add index to keep track of the order
+                }));
+                userCurrentIndex += formattedBooks.length; // Update the current index
+                books.push(...formattedBooks);
+                console.log(`Fetched ${formattedBooks.length} books for subject ${subject}`);
+            } catch (error) {
+                logger.error(`Error fetching books for subject ${subject}`, error);
+            }
         }
     }
     // Filter out books that are already in the queue
@@ -230,16 +271,15 @@ exports.fetchBooks = onCall(async (request) => {
     const existingDislikedBooks = dislikedBooksSnapshot.docs.map((doc) => doc.data().workKey);
     // Combine all existing books
     const existingBooks = [...existingQueueBooks, ...existingLikedBooks, ...existingDislikedBooks];
-    // Filter.
+    // Filter out books which are already in existingBooks leavin the rest.
     const newBooks = books.filter((book) => !existingBooks.includes(book.workKey));
-    // filter out books which have no description
-    const filteredBooks = newBooks.filter((book) => book.description !== "");
+    console.log(`Filtered down to ${newBooks.length} after comparing to books in like/dislikes for user ${userId}`);
     //randomize the new books
-    filteredBooks.sort(() => Math.random() - 0.5);
-    // Limit to 10 books
-    filteredBooks.splice(10);
+    newBooks.sort(() => Math.random() - 0.5);
+    // Limit to 15 books
+    newBooks.splice(15);
     // Check if there are any new books to add
-    if (filteredBooks.length === 0) {
+    if (newBooks.length === 0) {
         logger.log(`No new books found for user ${userId}`);
         // Set the isUpdating flag to false
         await userDocRef.update({ isUpdating: false });
@@ -247,15 +287,15 @@ exports.fetchBooks = onCall(async (request) => {
     }
     // Store each book as a separate document
     const batch = db.batch();
-    filteredBooks.forEach((book) => {
+    newBooks.forEach((book) => {
         const bookDocRef = queueRef.doc(); // Auto-generate document ID
         batch.set(bookDocRef, book);
     });
     await batch.commit();
-    // Set the isUpdating flag to false
-    await userDocRef.update({ isUpdating: false });
+    // Set the isUpdating flag to false and update the current index.
+    await userDocRef.update({ isUpdating: false, currentIndex: userCurrentIndex });
     // Log the number of new books added
-    logger.log(`Fetched and stored ${filteredBooks.length} new books for user ${userId}`);
+    logger.log(`Fetched and stored ${newBooks.length} new books for user ${userId}`);
     return { message: "Books fetched and stored successfully." };
     
 });
@@ -263,27 +303,54 @@ exports.fetchBooks = onCall(async (request) => {
 exports.updateSubjectKeywords = onDocumentCreated(
     "users/{userId}/likedBooks/{bookId}",
     async (event) => {
-        const snapshot = event.data; // Access the document snapshot
-        const context = event.params; // Access the context parameters
-        const userId = context.userId; // Extract userId from the document path
+        const snapshot = event.data;
+        const context = event.params;
+        const userId = context.userId;
         const likedBooksRef = db.collection("users").doc(userId).collection("likedBooks");
+        const dislikedBooksRef = db.collection("users").doc(userId).collection("dislikedBooks");
         const userDocRef = db.collection("users").doc(userId);
 
         try {
-            // Fetch the liked books
-            const likedBooksSnapshot = await likedBooksRef.get();
+            // Fetch liked and disliked books
+            const [likedBooksSnapshot, dislikedBooksSnapshot] = await Promise.all([
+                likedBooksRef.orderBy("createdAt", "desc").limit(200).get(),
+                dislikedBooksRef.limit(200).get()
+            ]);
             if (likedBooksSnapshot.empty) {
                 logger.log(`No liked books found for user ${userId}`);
                 return;
             }
 
-            const keywordScores = {};
-            likedBooksSnapshot.forEach((doc) => {
+            // Build a set of disliked subjects
+            const dislikedSubjects = {};
+            dislikedBooksSnapshot.forEach((doc) => {
                 const book = doc.data();
                 if (book.subjects) {
                     book.subjects.forEach((subject) => {
-                        keywordScores[subject] = (keywordScores[subject] || 0) + 1;
+                        dislikedSubjects[subject] = (dislikedSubjects[subject] || 0) + 1;
                     });
+                }
+            });
+
+            // Assign scores to keywords from liked books, prioritizing recent ones
+            const keywordScores = {};
+            const likedDocs = likedBooksSnapshot.docs;
+            const total = likedDocs.length;
+            likedDocs.forEach((doc, idx) => {
+                const book = doc.data();
+                // More recent books get higher weight
+                const weight = total - idx;
+                if (book.subjects) {
+                    book.subjects.forEach((subject) => {
+                        keywordScores[subject] = (keywordScores[subject] || 0) + weight;
+                    });
+                }
+            });
+
+            // Deprioritize keywords found in disliked books
+            Object.keys(dislikedSubjects).forEach((subject) => {
+                if (keywordScores[subject]) {
+                    keywordScores[subject] -= dislikedSubjects[subject];
                 }
             });
 
@@ -293,7 +360,6 @@ exports.updateSubjectKeywords = onDocumentCreated(
                 .slice(0, 5)
                 .map(([keyword]) => keyword);
 
-            // Update the user's subject keywords
             await userDocRef.update({ subjectKeywords: topKeywords });
 
             logger.log(`Subject keywords updated successfully for user ${userId}`, topKeywords);
@@ -303,12 +369,12 @@ exports.updateSubjectKeywords = onDocumentCreated(
     }
 );
 
-exports.userSetup = onCall(async (request, response) => {
+exports.userSetup = onCall(async (request) => {
     // this function will handle the fetching of trending books to setup the user
     // first it must fetch the trending books from OpenLibrary API
     // then it needs to get more detailed info about each book
     // finally it will store the books in the users queue
-    const trendingBooksUrl = "https://openlibrary.org/trending/yearly.json";
+    const trendingBooksUrl = "https://openlibrary.org/works/OL5736965W.json";
     try {
         const openLibResponse = await axios.get(trendingBooksUrl);
         var trendingBooks = openLibResponse.data.works || []; // Extract books from response
@@ -319,15 +385,17 @@ exports.userSetup = onCall(async (request, response) => {
         // cut down the number of books to 10
         trendingBooks = trendingBooks.slice(0, 10);
         // Map to extract relevant fields
-        const formattedBooks = trendingBooks.map((book) => ({
-            title: book.title,
-            authors: book.author_name || [],
-            publishYear: book.first_publish_year || null,
-            coverEditionKey: book.cover_edition_key || null,
-            author_key: book.author_key || [],
-            coverId: book.cover_i || null,
-            workKey: book.key,
-        }));
+        const formattedBooks = bookData.map((book) => ({
+                title: book.title,
+                authors: book.authors.map((author)=>author?.name) || [],
+                author_key: book.authors.map((author)=>author?.key) || "",
+                publishYear: book.first_publish_year || null,
+                coverEditionKey: book.cover_edition_key || null,
+                coverId: book.cover_id || null,
+                workKey: book.key,
+                subjects: book.subject || [],
+                description: book.description?.value || "",
+            }));
 
         // Fetch detailed info for each book
         const detailedBooks = await Promise.all(
