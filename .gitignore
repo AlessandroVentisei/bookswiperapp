@@ -72,3 +72,4 @@
 android/app/google-services.json
 node_modules/.bin/acorn
 node_modules
+functions/serviceAccountKey.json
