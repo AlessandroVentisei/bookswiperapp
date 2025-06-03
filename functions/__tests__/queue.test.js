@@ -1,7 +1,7 @@
 // Jest test for likeBook and fetchBooks Firebase Functions
 process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
 const test = require('firebase-functions-test')({
-  projectId: 'demo-test',
+  projectId: 'matchbook-b610d',
 }, './serviceAccountKey.json');
 const admin = require('firebase-admin');
 const myFunctions = require('../index');
@@ -12,12 +12,12 @@ describe('Queue Functions', () => {
   let wrappedLikeBook, wrappedFetchBooks, wrappedEnrichQueue;
   let db;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     db = admin.firestore();
     wrappedLikeBook = test.wrap(myFunctions.likeBook);
     wrappedFetchBooks = test.wrap(myFunctions.fetchBooks);
     wrappedEnrichQueue = test.wrap(myFunctions.enrichQueue);
-  });
+});
 
   afterAll(() => {
     test.cleanup();
@@ -35,35 +35,22 @@ describe('Queue Functions', () => {
     // Arrange: create user and book in Firestore
     const userId = 'testuser';
     const bookId = 'testbook';
-    const workKey = '/works/OL12345W';
-    await db.collection('users').doc(userId).set({});
+    const workKey = '/works/OL66554W';
+    await db.collection('users').doc(userId).set({"username": "testuser"});
     await db.collection('users').doc(userId).collection('books').doc(bookId).set({
       workKey: workKey,
       title: 'Test Book',
     });
-
+    // Mock the OpenLibrary API response for the work key
+    const keyResponse = require('./keyResponse.json');
+    const editionsResponse = require('./editionsResponse.json');
     // Mock OpenLibrary API responses
     axios.get.mockImplementation((url) => {
-      if (url.endsWith('.json')) {
-        return Promise.resolve({ data: {
-          subjects: ['Fiction', 'Adventure'],
-          description: { value: 'A test description.' },
-        }});
+      if (url.endsWith('/works/OL66554W.json')) {
+        // Use require to synchronously load the JSON file for Jest
+        return Promise.resolve({ data: keyResponse });
       } else if (url.endsWith('/editions.json')) {
-        return Promise.resolve({ data: {
-          entries: [
-            {
-              isbn_13: ['1234567890123'],
-              covers: [42],
-              languages: [{ key: '/languages/eng' }],
-              subtitle: 'A Test Subtitle',
-              publish_date: '2020',
-              publishers: ['Test Publisher'],
-              subjects: ['Fiction'],
-              pagination: '123p',
-            }
-          ]
-        }});
+        return Promise.resolve({ data: editionsResponse });
       }
       return Promise.resolve({ data: {} });
     });
@@ -72,19 +59,20 @@ describe('Queue Functions', () => {
     await wrappedEnrichQueue({
       params: { userId, bookId },
     });
-
+    // Wait for the Firestore document to be updated
+    // await new Promise(resolve => setTimeout(resolve, 3000));
     // Assert: check that the book document was updated
     const bookDoc = await db.collection('users').doc(userId).collection('books').doc(bookId).get();
     const data = bookDoc.data();
-    expect(data.subjects).toEqual(['Fiction', 'Adventure']);
-    expect(data.description).toBe('A test description.');
-    expect(data.isbn13).toEqual(['1234567890123']);
-    expect(data.coverId).toBe(42);
-    expect(data.language_keys).toEqual(['/languages/eng']);
-    expect(data.subtitle).toBe('A Test Subtitle');
-    expect(data.publishedDate).toBe('2020');
-    expect(data.publisher).toEqual(['Test Publisher']);
-    expect(data.subjects_edition).toEqual(['Fiction']);
-    expect(data.pagination).toBe('123p');
+    expect(data.subjects).toEqual(keyResponse.subjects);
+    expect(data.description).toBe(keyResponse.description);
+    expect(data.isbn13[0]).toEqual("9781648337093");
+    expect(data.coverId).toBe(14665299);
+    expect(data.languages).toEqual(['/languages/eng']);
+    expect(data.subtitle).toBe('');
+    expect(data.publishedDate).toBe('2024');
+    expect(data.publisher).toEqual(["Page Publications"]);
+    expect(data.subjects_edition).toEqual(['Fiction, general']);
+    expect(data.number_of_pages).toBe('');
   });
 });

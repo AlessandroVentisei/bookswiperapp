@@ -116,13 +116,14 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
         const detailedBookData = response.data;
         await bookDocRef.update({
             subjects: detailedBookData.subjects || [],
-            description: detailedBookData.description?.value || "",
+            description: detailedBookData.description || "",
         });
 
         const editions = await axios.get(`https://openlibrary.org${bookData.workKey}/editions.json`);
         const editionsData = editions.data;
+        logger.log(editionsData);
         // extract ISBN13, languages.key, subtitle, published_date, publisher, and subjects from the most recently published edition.
-        if (!editionsData || !editionsData.entries || editionsData.entries.length === 0) {
+        if (!editionsData || !editionsData.entries || editionsData.entries === 0) {
             logger.log(`No editions found for book ${bookId} for user ${userId}`);
             return;
         }
@@ -138,7 +139,7 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
         const publishedDate = firstEdition?.publish_date || "";
         const publisher = firstEdition?.publishers || [];
         const subjects = firstEdition?.subjects || [];
-        const pagination = firstEdition?.pagination || "";
+        const number_of_pages = firstEdition?.number_of_pages || "";
         const languageKeys = languages.map((language) => language.key);
         // delete book from queue if there is no isbn13 or the language.key doesn't contain "/languages/eng"
         if (isbn13.length === 0) {
@@ -151,13 +152,12 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
             isbn13: isbn13,
             // if cover is empty leave it as is, otherwise set it to the cover id.
             coverId: cover ? cover : bookData.coverId,
-            language_keys: languageKeys,
             languages: languageKeys,
             subtitle: subtitle,
             publishedDate: publishedDate,
             publisher: publisher,
             subjects_edition: subjects,
-            pagination: pagination,
+            number_of_pages: number_of_pages,
         });
         logger.log(`Book document enriched for user ${userId} and book ${bookId}`);
     } catch (error) {
