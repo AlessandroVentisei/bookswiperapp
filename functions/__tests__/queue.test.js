@@ -2,7 +2,7 @@
 process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
 const test = require('firebase-functions-test')({
   projectId: 'matchbook-b610d',
-});
+}, "./serviceAccountKey.json");
 const admin = require('firebase-admin');
 const myFunctions = require('../index');
 const axios = require('axios');
@@ -19,8 +19,11 @@ describe('Queue Functions', () => {
     wrappedEnrichQueue = test.wrap(myFunctions.enrichQueue);
 });
 
-  afterAll(() => {
+  afterAll(async () => {
     test.cleanup();
+    // Properly clean up the Firebase Admin app to close open handles
+    await Promise.all(admin.apps.map(app => app.delete()));
+    jest.restoreAllMocks();
   });
 
   it('should return error if user param is missing in likeBook', async () => {
@@ -59,8 +62,6 @@ describe('Queue Functions', () => {
     await wrappedEnrichQueue({
       params: { userId, bookId },
     });
-    // Wait for the Firestore document to be updated
-    // await new Promise(resolve => setTimeout(resolve, 3000));
     // Assert: check that the book document was updated
     const bookDoc = await db.collection('users').doc(userId).collection('books').doc(bookId).get();
     const data = bookDoc.data();

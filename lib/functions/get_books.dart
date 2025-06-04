@@ -35,6 +35,14 @@ class Book {
 
   // Factory method to create a Book from Firestore data
   factory Book.fromFirestore(Map<String, dynamic> data, String docId) {
+    // Handle description being either a String or a Map
+    String description = "";
+    if (data['description'] is String) {
+      description = data['description'];
+    } else if (data['description'] is Map<String, dynamic> &&
+        data['description']['value'] is String) {
+      description = data['description']['value'];
+    }
     return Book(
       subjects: List<String>.from(data['subjects'] ?? []),
       subjectPeople: List<String>.from(data['subject_people'] ?? []),
@@ -49,7 +57,7 @@ class Book {
       title: data['title'] ?? '',
       bookKey: data['workKey'] ?? '',
       coverI: data['coverId'] ?? 0,
-      description: data['description'] ?? "",
+      description: description,
       docId: docId, // Assign docId
     );
   }

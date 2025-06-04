@@ -121,15 +121,14 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
 
         const editions = await axios.get(`https://openlibrary.org${bookData.workKey}/editions.json`);
         const editionsData = editions.data;
-        logger.log(editionsData);
         // extract ISBN13, languages.key, subtitle, published_date, publisher, and subjects from the most recently published edition.
         if (!editionsData || !editionsData.entries || editionsData.entries === 0) {
             logger.log(`No editions found for book ${bookId} for user ${userId}`);
             return;
         }
-        // Get the first edition (most recent) from the editions data
-        // select entry with the most publish_date, and remove slashes or dashes from the field.
+        // Get the first edition (most recent) from the editions data with scoring system
         const firstEdition = getMostRecentEdition(editionsData.entries);
+        logger.log(`First edition found for book ${bookId} for user ${userId}`, firstEdition);
         
         // Get the first edition
         const isbn13 = firstEdition?.isbn_13 || [];
@@ -140,6 +139,7 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
         const publisher = firstEdition?.publishers || [];
         const subjects = firstEdition?.subjects || [];
         const number_of_pages = firstEdition?.number_of_pages || "";
+        const editionKey = firstEdition?.key || "";
         const languageKeys = languages.map((language) => language.key);
         // delete book from queue if there is no isbn13 or the language.key doesn't contain "/languages/eng"
         if (isbn13.length === 0) {
