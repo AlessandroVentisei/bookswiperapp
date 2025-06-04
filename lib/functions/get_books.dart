@@ -7,75 +7,51 @@ import 'package:flutter/services.dart';
 
 // Define the Book data type
 class Book {
-  final List<String> subjects;
-  final List<String> subjectPeople;
-  final List<String> subjectPlaces;
-  final List<String> subjectTimes;
-  final List<String> authors;
-  final List<String> authorKey;
-  final String title;
-  final String bookKey;
-  final int coverI;
-  final String description;
-  final String docId; // Add docId property
+  final Map<String, dynamic> data;
+  final String docId;
 
-  Book({
-    required this.subjects,
-    required this.subjectPeople,
-    required this.subjectPlaces,
-    required this.subjectTimes,
-    required this.authors,
-    required this.authorKey,
-    required this.title,
-    required this.bookKey,
-    required this.coverI,
-    required this.description,
-    required this.docId, // Add docId to constructor
-  });
+  Book({required this.data, required this.docId});
 
-  // Factory method to create a Book from Firestore data
   factory Book.fromFirestore(Map<String, dynamic> data, String docId) {
-    // Handle description being either a String or a Map
-    String description = "";
-    if (data['description'] is String) {
-      description = data['description'];
-    } else if (data['description'] is Map<String, dynamic> &&
-        data['description']['value'] is String) {
-      description = data['description']['value'];
-    }
-    return Book(
-      subjects: List<String>.from(data['subjects'] ?? []),
-      subjectPeople: List<String>.from(data['subject_people'] ?? []),
-      subjectPlaces: List<String>.from(data['subject_places'] ?? []),
-      subjectTimes: List<String>.from(data['subject_times'] ?? []),
-      authors: data['authors'] is List
-          ? List<String>.from(data['authors'].map((e) => e.toString()))
-          : [data['authors']?.toString() ?? ''],
-      authorKey: data['author_key'] is List
-          ? List<String>.from(data['author_key'].map((e) => e.toString()))
-          : [data['author_key']?.toString() ?? ''],
-      title: data['title'] ?? '',
-      bookKey: data['workKey'] ?? '',
-      coverI: data['coverId'] ?? 0,
-      description: description,
-      docId: docId, // Assign docId
-    );
+    return Book(data: data, docId: docId);
   }
 
-  // Convert a Book to Firestore data
-  Map<String, dynamic> toFirestore() {
-    return {
-      'subjects': subjects,
-      'subject_people': subjectPeople,
-      'subject_places': subjectPlaces,
-      'subject_times': subjectTimes,
-      'authors': authors,
-      'author_key': authorKey,
-      'title': title,
-      'book_key': bookKey,
-      'coverI': coverI,
-      'description': description,
-    };
+  Map<String, dynamic> toFirestore() => data;
+
+  String get title => data['title'] ?? '';
+  List<String> get subjects =>
+      List<String>.from(data['subject'] ?? data['subjects'] ?? []);
+  List<String> get authors {
+    if (data['authors'] is List) {
+      return List<String>.from((data['authors'] as List).map((e) {
+        if (e is Map && e['name'] != null) return e['name'].toString();
+        if (e is Map && e['author'] is Map && e['author']['key'] != null) {
+          return e['author']['key'].toString();
+        }
+        return e.toString();
+      }));
+    }
+    return [];
+  }
+
+  int get coverI {
+    if (data['cover_id'] != null) return data['cover_id'];
+    if (data['covers'] is List && data['covers'].isNotEmpty) {
+      return data['covers'][0];
+    }
+    return 0;
+  }
+
+  String get bookKey => data['key'] ?? '';
+
+  String get description {
+    if (data['description'] is String) {
+      return data['description'];
+    } else if (data['description'] is Map &&
+        (data['description'] as Map)['value'] is String) {
+      return (data['description'] as Map)['value'];
+    }
+    return '';
   }
 }
 
@@ -129,7 +105,7 @@ uploadTrendingBooks(User user) async {
                   .map((author) => author['author']['key']?.toString() ?? '')
                   .toList()
               : [],
-          'workKey': work['key'] ?? '',
+          'key': work['key'] ?? '',
           'coverI': work['covers'] != null && work['covers'] is List
               ? work['covers'][0]
               : 0,

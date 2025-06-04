@@ -110,16 +110,13 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
         return;
     }
     const bookData = bookDoc.data();
-    const openLibUrl = `https://openlibrary.org${bookData.workKey}.json`;
+    const openLibUrl = `https://openlibrary.org${bookData.key}.json`;
     try {
         const response = await axios.get(openLibUrl);
         const detailedBookData = response.data;
-        await bookDocRef.update({
-            subjects: detailedBookData.subjects || [],
-            description: detailedBookData.description || "",
-        });
+        await bookDocRef.set(detailedBookData, { merge: true });
 
-        const editions = await axios.get(`https://openlibrary.org${bookData.workKey}/editions.json`);
+        const editions = await axios.get(`https://openlibrary.org${bookData.key}/editions.json`);
         const editionsData = editions.data;
         // extract ISBN13, languages.key, subtitle, published_date, publisher, and subjects from the most recently published edition.
         if (!editionsData || !editionsData.entries || editionsData.entries === 0) {
@@ -130,35 +127,13 @@ exports.enrichQueue = onDocumentCreated("users/{userId}/books/{bookId}", async (
         const firstEdition = getMostRecentEdition(editionsData.entries);
         logger.log(`First edition found for book ${bookId} for user ${userId}`, firstEdition);
         
-        // Get the first edition
         const isbn13 = firstEdition?.isbn_13 || [];
-        const cover = firstEdition?.covers[0] || "";
-        const languages = firstEdition?.languages || [];
-        const subtitle = firstEdition?.subtitle || "";
-        const publishedDate = firstEdition?.publish_date || "";
-        const publisher = firstEdition?.publishers || [];
-        const subjects = firstEdition?.subjects || [];
-        const number_of_pages = firstEdition?.number_of_pages || "";
-        const editionKey = firstEdition?.key || "";
-        const languageKeys = languages.map((language) => language.key);
-        // delete book from queue if there is no isbn13 or the language.key doesn't contain "/languages/eng"
         if (isbn13.length === 0) {
             await bookDocRef.delete();
             logger.log(`Book document deleted for user ${userId} and book ${bookId}`);
             return;
         }
-        // update the book document with the new data
-        await bookDocRef.update({
-            isbn13: isbn13,
-            // if cover is empty leave it as is, otherwise set it to the cover id.
-            coverId: cover ? cover : bookData.coverId,
-            languages: languageKeys,
-            subtitle: subtitle,
-            publishedDate: publishedDate,
-            publisher: publisher,
-            subjects_edition: subjects,
-            number_of_pages: number_of_pages,
-        });
+        await bookDocRef.set(firstEdition, { merge: true });
         logger.log(`Book document enriched for user ${userId} and book ${bookId}`);
     } catch (error) {
         logger.error(`Error enriching book document for user ${userId} and book ${bookId}`, error);
@@ -243,21 +218,12 @@ exports.fetchBooks = onCall(async (request) => {
             try {
                 const subjectResponse = await axios.get(subjectUrl);
                 const bookData = subjectResponse.data['works'] || [];
-                // Map to extract relevant fields
                 const formattedBooks = bookData.map((book, indx) => ({
-                    title: book.title,
-                    authors: book.authors.map((author) => author?.name) || [],
-                    author_key: book.authors.map((author) => author?.key) || "",
-                    publishYear: book.first_publish_year || null,
-                    coverEditionKey: book.cover_edition_key || null,
-                    coverId: book.cover_id || null,
-                    workKey: book.key,
-                    subjects: book.subject || [],
-                    description: book.description?.value || "",
+                    ...book,
                     createdAt: new Date(),
-                    index: userCurrentIndex + indx // Add index to keep track of the order
+                    index: userCurrentIndex + indx
                 }));
-                userCurrentIndex += formattedBooks.length; // Update the current index
+                userCurrentIndex += formattedBooks.length;
                 books.push(...formattedBooks);
                 console.log(`Fetched ${formattedBooks.length} books for subject ${subject}`);
             } catch (error) {
@@ -266,13 +232,13 @@ exports.fetchBooks = onCall(async (request) => {
         }
     }
     // Filter out books that are already in the queue
-    const existingQueueBooks = queueSnapshot.docs.map((doc) => doc.data().workKey);
-    const existingLikedBooks = likedBooksSnapshot.docs.map((doc) => doc.data().workKey);
-    const existingDislikedBooks = dislikedBooksSnapshot.docs.map((doc) => doc.data().workKey);
+    const existingQueueBooks = queueSnapshot.docs.map((doc) => doc.data().key);
+    const existingLikedBooks = likedBooksSnapshot.docs.map((doc) => doc.data().key);
+    const existingDislikedBooks = dislikedBooksSnapshot.docs.map((doc) => doc.data().key);
     // Combine all existing books
     const existingBooks = [...existingQueueBooks, ...existingLikedBooks, ...existingDislikedBooks];
     // Filter out books which are already in existingBooks leavin the rest.
-    const newBooks = books.filter((book) => !existingBooks.includes(book.workKey));
+    const newBooks = books.filter((book) => !existingBooks.includes(book.key));
     console.log(`Filtered down to ${newBooks.length} after comparing to books in like/dislikes for user ${userId}`);
     //randomize the new books
     newBooks.sort(() => Math.random() - 0.5);
@@ -384,28 +350,17 @@ exports.userSetup = onCall(async (request) => {
         }
         // cut down the number of books to 10
         trendingBooks = trendingBooks.slice(0, 10);
-        // Map to extract relevant fields
         const formattedBooks = bookData.map((book) => ({
-                title: book.title,
-                authors: book.authors.map((author)=>author?.name) || [],
-                author_key: book.authors.map((author)=>author?.key) || "",
-                publishYear: book.first_publish_year || null,
-                coverEditionKey: book.cover_edition_key || null,
-                coverId: book.cover_id || null,
-                workKey: book.key,
-                subjects: book.subject || [],
-                description: book.description?.value || "",
+                ...book
             }));
 
-        // Fetch detailed info for each book
         const detailedBooks = await Promise.all(
             formattedBooks.map(async (book) => {
-                const bookUrl = `https://openlibrary.org${book.workKey}.json`;
+                const bookUrl = `https://openlibrary.org${book.key}.json`;
                 const bookResponse = await axios.get(bookUrl);
                 return {
                     ...book,
-                    subjects: bookResponse.data.subjects || [],
-                    description: bookResponse.data.description?.value || "",
+                    ...bookResponse.data,
                 };
             })
         );
