@@ -2,7 +2,7 @@
 process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
 const test = require('firebase-functions-test')({
   projectId: 'matchbook-b610d',
-}, './serviceAccountKey.json');
+});
 const admin = require('firebase-admin');
 const myFunctions = require('../index');
 const axios = require('axios');
@@ -74,5 +74,54 @@ describe('Queue Functions', () => {
     expect(data.publisher).toEqual(["Page Publications"]);
     expect(data.subjects_edition).toEqual(['Fiction, general']);
     expect(data.number_of_pages).toBe('');
+  });
+
+  it('should fetch new books and add them to the user queue', async () => {
+    const userId = 'fetchuser';
+    const queueRef = db.collection('users').doc(userId).collection('books');
+
+    // Setup: user document with subject keywords and a small queue
+    await db.collection('users').doc(userId).set({
+      subjectKeywords: ['science'],
+      fetchedSubjects: [],
+      currentIndex: 0,
+      isUpdating: false,
+    });
+    await queueRef.add({ workKey: '/works/OLD1', title: 'Old Book' });
+    const beforeSnapshot = await queueRef.get();
+
+    // Mock OpenLibrary API responses used in fetchBooks
+    axios.get.mockImplementation((url) => {
+      if (url.includes('/subjects/science.json')) {
+        return Promise.resolve({ data: { subjects: [{ key: 'subjects/physics' }] } });
+      } else if (url.includes('subjects/physics.json')) {
+        return Promise.resolve({
+          data: {
+            works: [
+              {
+                title: 'Physics 101',
+                authors: [{ name: 'Albert', key: '/authors/A1' }],
+                first_publish_year: 2000,
+                cover_edition_key: null,
+                cover_id: null,
+                key: '/works/WNEW',
+                subject: ['physics'],
+                description: { value: 'desc' },
+              },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    await wrappedFetchBooks({ userId });
+
+    const afterSnapshot = await queueRef.get();
+    expect(afterSnapshot.size).toBeGreaterThan(beforeSnapshot.size);
+
+    // Clean up created data
+    await Promise.all(afterSnapshot.docs.map((doc) => doc.ref.delete()));
+    await db.collection('users').doc(userId).delete();
   });
 });
