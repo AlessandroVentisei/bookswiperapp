@@ -41,7 +41,7 @@ describe('Queue Functions', () => {
     const workKey = '/works/OL66554W';
     await db.collection('users').doc(userId).set({"username": "testuser"});
     await db.collection('users').doc(userId).collection('books').doc(bookId).set({
-      workKey: workKey,
+      key: workKey,
       title: 'Test Book',
     });
     // Mock the OpenLibrary API response for the work key
@@ -67,14 +67,12 @@ describe('Queue Functions', () => {
     const data = bookDoc.data();
     expect(data.subjects).toEqual(keyResponse.subjects);
     expect(data.description).toBe(keyResponse.description);
-    expect(data.isbn13[0]).toEqual("9781648337093");
-    expect(data.coverId).toBe(14665299);
-    expect(data.languages).toEqual(['/languages/eng']);
+    expect(data.isbn_13[0]).toEqual('9781648337093');
+    expect(data.covers[0]).toBe(14665299);
+    expect(data.languages[0].key).toEqual('/languages/eng');
     expect(data.subtitle).toBe('');
-    expect(data.publishedDate).toBe('2024');
-    expect(data.publisher).toEqual(["Page Publications"]);
-    expect(data.subjects_edition).toEqual(['Fiction, general']);
-    expect(data.number_of_pages).toBe('');
+    expect(data.publish_date).toBe('2024');
+    expect(data.publishers).toEqual(['Page Publications']);
   });
 
   it('should fetch new books and add them to the user queue', async () => {
@@ -88,7 +86,7 @@ describe('Queue Functions', () => {
       currentIndex: 0,
       isUpdating: false,
     });
-    await queueRef.add({ workKey: '/works/OLD1', title: 'Old Book' });
+    await queueRef.add({ key: '/works/OLD1', title: 'Old Book' });
     const beforeSnapshot = await queueRef.get();
 
     // Mock OpenLibrary API responses used in fetchBooks
