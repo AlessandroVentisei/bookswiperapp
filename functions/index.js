@@ -294,11 +294,6 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
             const editionsData = editionsResponse.data;
             if (!editionsData || !editionsData.entries || editionsData.entries.length === 0) continue;
             const firstEdition = getMostRecentEdition(editionsData.entries);
-            const isbn13 = firstEdition?.isbn_13 || [];
-            const languages = firstEdition?.languages || [];
-            // Only keep books with ISBN13 and English language
-            const isEnglish = languages.includes('/languages/eng');
-            if (isbn13.length === 0 || !isEnglish) continue;
             enrichedBooks.push({ ...book, ...firstEdition });
         } catch (error) {
             logger.error(`Error enriching book ${book.key}`, error);
@@ -309,14 +304,17 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
         await userDocRef.update({ isUpdating: false });
         return;
     }
+    
     // Batch write enriched books
     const batch = db.batch();
     enrichedBooks.forEach((book) => {
+        // Remove 'availability' field before writing
+        const { availability, ...cleanedBook } = book;
         const bookDocRef = queueRef.doc();
-        batch.set(bookDocRef, book);
+        batch.set(bookDocRef, cleanedBook);
     });
     await batch.commit();
     await userDocRef.update({ isUpdating: false, currentIndex: userCurrentIndex });
     logger.log(`Fetched and stored ${enrichedBooks.length} enriched books for user ${userId}`);
-    return { message: "Books fetched, enriched, and stored successfully." };
+    return { message: "Books fetched, enriched, and stored successfully."};
 });

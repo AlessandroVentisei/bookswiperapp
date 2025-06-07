@@ -8,12 +8,14 @@ function parseYear(publishDate) {
 
 // Function to process editions and select the most recent one
 function getMostRecentEdition(editions) {
+  // filter out editions that aren't english or don't have an ISBN-13
+  editions = editions.filter(edition => {
+    return edition.isbn_13?.length > 0 && edition.languages?.some(lang => lang.key === '/languages/eng');
+  });
   // Helper to count how many important fields are present
   function fieldScore(edition) {
     let score = 0;
-    if (edition.isbn_13 && edition.isbn_13.length > 0) score++;
     if (edition.covers && edition.covers.length > 0) score++;
-    if (edition.languages && edition.languages.length > 0) score++;
     if (edition.subtitle) score++;
     if (edition.publish_date) score++;
     if (edition.publishers && edition.publishers.length > 0) score++;
@@ -28,7 +30,6 @@ function getMostRecentEdition(editions) {
     _year: parseYear(edition.publish_date),
     _score: fieldScore(edition),
   }));
-  logger.log('Parsed Editions with Meta:', editionsWithMeta);
 
   // Prefer editions with a year, sort by year desc, then by field score desc
   const withYear = editionsWithMeta.filter(e => e._year).sort((a, b) => {
@@ -37,7 +38,7 @@ function getMostRecentEdition(editions) {
   });
   if (withYear.length > 0) return withYear[0];
 
-  // If no editions have a year, just pick the one with the most fields present
+  // If no editions have a year, pick the one with the most fields present
   const byScore = editionsWithMeta.sort((a, b) => b._score - a._score);
   return byScore[0] || null;
 }

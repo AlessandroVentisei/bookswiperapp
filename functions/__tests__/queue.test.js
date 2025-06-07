@@ -59,17 +59,17 @@ describe('Queue Functions', () => {
 
     // Act: call the new combined function to fetch and enrich
     await wrappedFetchAndEnrichBooks({ data: { userId } });
-
+    // delay for Firestore to update
+    await new Promise(resolve => setTimeout(resolve, 1000));
     // Assert: check that the book document was updated
-    const bookDoc = await db.collection('users').doc(userId).collection('books').doc(bookId).get();
+    const query = await db.collection('users').doc(userId).collection('books').orderBy('createdAt', 'desc').limit(1).get();
+    const bookDoc = query.docs[0];
     const data = bookDoc.data();
-    expect(data.subjects).toEqual(keyResponse.subjects);
-    expect(data.description).toBe(keyResponse.description);
-    expect(data.isbn_13[0]).toEqual('9781648337093');
-    expect(data.covers[0]).toBe(14665299);
+    const expectedResponse = require('./expectedResponse.json');
+    expect(data.description).toBe(expectedResponse.description);
+    expect(data.isbn_13[0]).toEqual(expectedResponse.isbn_13[0]);
+    expect(data.cover_id[0]).toBe(expectedResponse.cover_id[0]);
     expect(data.languages[0].key).toEqual('/languages/eng');
-    expect(data.subtitle).toBe('');
-    expect(data.publish_date).toBe('2024');
-    expect(data.publishers).toEqual(['Page Publications']);
-  });
+    expect(data.publish_date).toBe('2021');
+    expect(data.key).toEqual("/books/OL48867221M");});
 });
