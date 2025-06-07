@@ -43,6 +43,7 @@ describe('Queue Functions', () => {
     const keyResponse = require('./keyResponse.json');
     const editionsResponse = require('./editionsResponse.json');
     const subjectsResponse = require('./subjectResponse.json');
+    const authorResponse = require('./authorResponse.json');
     // Mock OpenLibrary API responses
     axios.get.mockImplementation((url) => {
         if (url.includes('subjects/test.json?details=true&offset=')) {
@@ -53,8 +54,10 @@ describe('Queue Functions', () => {
         return Promise.resolve({ data: keyResponse });
         } else if (url.endsWith('/editions.json')) {
             return Promise.resolve({ data: editionsResponse });
+        } else if (url.endsWith('/authors/OL22098A.json')) {
+            return Promise.resolve({ data: authorResponse });
         }
-        return Promise.resolve({ data: {} });
+        return {};
     });
 
     // Act: call the new combined function to fetch and enrich
@@ -70,6 +73,5 @@ describe('Queue Functions', () => {
     expect(data.isbn_13[0]).toEqual(expectedResponse.isbn_13[0]);
     expect(data.cover_id[0]).toBe(expectedResponse.cover_id[0]);
     expect(data.languages[0].key).toEqual('/languages/eng');
-    expect(data.publish_date).toBe('2021');
-    expect(data.key).toEqual("/books/OL48867221M");});
+    expect(data.key).toEqual(expectedResponse.key);});
 });

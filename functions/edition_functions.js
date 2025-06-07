@@ -8,9 +8,9 @@ function parseYear(publishDate) {
 
 // Function to process editions and select the most recent one
 function getMostRecentEdition(editions) {
-  // filter out editions that aren't english or don't have an ISBN-13
+  // filter out editions that aren't english, don't have a cover or don't have an ISBN-13
   editions = editions.filter(edition => {
-    return edition.isbn_13?.length > 0 && edition.languages?.some(lang => lang.key === '/languages/eng');
+    return edition.isbn_13?.length > 0 && edition.languages?.some(lang => lang.key === '/languages/eng') && edition.covers?.length > 0;
   });
   // Helper to count how many important fields are present
   function fieldScore(edition) {

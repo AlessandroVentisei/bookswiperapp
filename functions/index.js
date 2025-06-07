@@ -120,8 +120,8 @@ exports.updateSubjectKeywords = onDocumentCreated(
             const dislikedSubjects = {};
             dislikedBooksSnapshot.forEach((doc) => {
                 const book = doc.data();
-                if (book.subjects) {
-                    book.subjects.forEach((subject) => {
+                if (book.subject) {
+                    book.subject.forEach((subject) => {
                         dislikedSubjects[subject] = (dislikedSubjects[subject] || 0) + 1;
                     });
                 }
@@ -135,8 +135,8 @@ exports.updateSubjectKeywords = onDocumentCreated(
                 const book = doc.data();
                 // More recent books get higher weight
                 const weight = total - idx;
-                if (book.subjects) {
-                    book.subjects.forEach((subject) => {
+                if (book.subject) {
+                    book.subject.forEach((subject) => {
                         keywordScores[subject] = (keywordScores[subject] || 0) + weight;
                     });
                 }
@@ -257,13 +257,14 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
         const subjectResponse = await axios.get(subjectUrl);
         const workCount = subjectResponse.data.work_count || 0;
         if (workCount === 0) {continue};
-        // Pick a random offset between 0 and workCount - 1 (limit to 12 per OpenLibrary API)
-        const maxOffset = Math.max(0, workCount - 12);
+        // Pick a random offset between 0 and top 2% of workCount (limit to 12 per OpenLibrary API)
+        const maxOffset = Math.max(0, Math.round(workCount/50));
         const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
         // Fetch a random page of works for this subject
         const worksUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true&offset=${randomOffset}`;
         const worksResponse = await axios.get(worksUrl);
         const bookData = worksResponse.data['works'] || [];
+        bookData.filter((book) => book.first_publish_year > 1980); // Filter out books published before 1980s (could be user parameter in the future)
         const formattedBooks = bookData.map((book, indx) => ({
             ...book,
             createdAt: new Date(),
@@ -294,11 +295,19 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
             const editionsData = editionsResponse.data;
             if (!editionsData || !editionsData.entries || editionsData.entries.length === 0) continue;
             const firstEdition = getMostRecentEdition(editionsData.entries);
+            if(!firstEdition) continue;
+            for (const author of book.authors || []) {
+                const authorUrl = `https://openlibrary.org${author.key}.json`;
+                const authorResponse = await axios.get(authorUrl);
+                const authorData = authorResponse.data;
+                author.details = authorData;
+            }
             enrichedBooks.push({ ...book, ...firstEdition });
         } catch (error) {
             logger.error(`Error enriching book ${book.key}`, error);
         }
     }
+
     if (enrichedBooks.length === 0) {
         logger.log(`No enriched books found for user ${userId}`);
         await userDocRef.update({ isUpdating: false });

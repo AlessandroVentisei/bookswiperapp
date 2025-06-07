@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 // Define the Book data type
 class Book {
@@ -19,22 +20,18 @@ class Book {
   Map<String, dynamic> toFirestore() => data;
 
   String get title => data['title'] ?? '';
+  String get isbn_13 => data['isbn_13'] ?? '';
+
   List<String> get subjects =>
       List<String>.from(data['subject'] ?? data['subjects'] ?? []);
-  List<String> get authors {
+  List<Map<String, dynamic>> get authors {
     if (data['authors'] is List) {
-      return List<String>.from((data['authors'] as List).map((e) {
-        if (e is Map && e['name'] != null) return e['name'].toString();
-        if (e is Map && e['author'] is Map && e['author']['key'] != null) {
-          return e['author']['key'].toString();
-        }
-        return e.toString();
-      }));
+      return List<Map<String, dynamic>>.from((data['authors']));
     }
     return [];
   }
 
-  int get coverI {
+  int get cover {
     if (data['cover_id'] != null) return data['cover_id'];
     if (data['covers'] is List && data['covers'].isNotEmpty) {
       return data['covers'][0];
@@ -106,7 +103,7 @@ uploadTrendingBooks(User user) async {
                   .toList()
               : [],
           'key': work['key'] ?? '',
-          'coverI': work['covers'] != null && work['covers'] is List
+          'cover': work['covers'] != null && work['covers'] is List
               ? work['covers'][0]
               : 0,
           'subjects': work['subjects'] ?? [],
@@ -127,5 +124,22 @@ uploadTrendingBooks(User user) async {
   } catch (e) {
     // Handle errors (e.g., log them)
     print('Error loading JSON or processing data: $e');
+  }
+}
+
+Future<Map<String, dynamic>?> fetchAuthorData(String authorKey) async {
+  final url = 'https://openlibrary.org$authorKey.json?details=true';
+  try {
+    final response = await http.get(Uri.parse(url));
+    // print(response.body);
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    } else {
+      print('Failed to fetch author data: \\${response.statusCode}');
+      return null;
+    }
+  } catch (e) {
+    print('Error fetching author data: $e');
+    return null;
   }
 }

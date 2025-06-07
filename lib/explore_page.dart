@@ -71,7 +71,7 @@ class _ExplorePage extends State<ExplorePage> {
               IconButton(
                 icon: Icon(Icons.upload),
                 onPressed: () {
-                  firebaseFunctions!.httpsCallable("fetchBooks").call({
+                  firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({
                     "userId": FirebaseAuth.instance.currentUser!.uid,
                   }).then((value) {
                     print("Books fetched successfully");
@@ -92,7 +92,7 @@ class _ExplorePage extends State<ExplorePage> {
               return Center(
                   child: Text('Error loading books. Please try again.'));
             } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              firebaseFunctions!.httpsCallable("fetchBooks").call({
+              firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({
                 "userId": FirebaseAuth.instance.currentUser!.uid,
               });
               return Center(
@@ -111,64 +111,92 @@ class _ExplorePage extends State<ExplorePage> {
             _previousBooks = List<Book>.from(books);
             List<Container> cards = books.map((book) {
               return Container(
-                height: 400, // Fixed height for the card
-                width: double.infinity,
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(color: appTheme.colorScheme.primary),
-                child: SingleChildScrollView(
-                  clipBehavior: Clip.none,
-                  child: Column(
-                    spacing: 12,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      // Set a fixed height for the image
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: SizedBox(
-                          width: 356,
-                          height: 522,
-                          child: Image.network(
-                            'https://covers.openlibrary.org/b/id/${book.coverI}-L.jpg',
-                            width: 356,
-                            height: 522,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  color: appTheme.colorScheme.secondary,
-                                  backgroundColor:
-                                      appTheme.colorScheme.secondary,
-                                  strokeWidth: 2,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      Column(
-                        spacing: 6,
+                  height: 400, // Fixed height for the card
+                  width: double.infinity,
+                  padding: EdgeInsets.all(12),
+                  decoration:
+                      BoxDecoration(color: appTheme.colorScheme.primary),
+                  child: SingleChildScrollView(
+                    clipBehavior: Clip.none,
+                    child: Column(
+                        spacing: 12,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.max,
                         children: [
-                          Text(
-                            book.title,
-                            style: appTheme.textTheme.headlineMedium,
-                            overflow: TextOverflow.fade,
+                          // Set a fixed height for the image
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: SizedBox(
+                              width: 356,
+                              height: 522,
+                              child: Image.network(
+                                'https://covers.openlibrary.org/b/id/${book.cover}-L.jpg',
+                                width: 356,
+                                height: 522,
+                                fit: BoxFit.cover,
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      color: appTheme.colorScheme.secondary,
+                                      backgroundColor:
+                                          appTheme.colorScheme.secondary,
+                                      strokeWidth: 2,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
                           ),
-                          Text(
-                            book.authors.join(", "),
-                            style: appTheme.textTheme.headlineSmall,
+                          Column(
+                            spacing: 6,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                book.title,
+                                style: appTheme.textTheme.headlineMedium,
+                                overflow: TextOverflow.fade,
+                              ),
+                              FutureBuilder<List<String>>(
+                                // Fetch author names
+                                future: Future.wait(
+                                    book.authors.map((author) async {
+                                  final authorData = await fetchAuthorData(
+                                      author['key'] ?? '');
+                                  return authorData != null
+                                      ? authorData['personal_name'] as String
+                                      : 'Unknown Author';
+                                })),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return Text('Loading authors...',
+                                        style: appTheme.textTheme.bodyMedium);
+                                  } else if (snapshot.hasError) {
+                                    return Text('Error loading authors',
+                                        style: appTheme.textTheme.bodyMedium);
+                                  } else {
+                                    final names = snapshot.data ?? [];
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: names
+                                          .map((name) => Text(name,
+                                              style: appTheme
+                                                  .textTheme.bodyMedium))
+                                          .toList(),
+                                    );
+                                  }
+                                },
+                              ),
+                              Text(book.description,
+                                  style: appTheme.textTheme.bodyMedium)
+                            ],
                           ),
-                        ],
-                      ),
-                      Text(book.description,
-                          style: appTheme.textTheme.bodyMedium)
-                    ],
-                  ),
-                ),
-              );
+                        ]),
+                  ));
             }).toList();
 
             return LayoutBuilder(
@@ -192,7 +220,9 @@ class _ExplorePage extends State<ExplorePage> {
                             "user": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Book Liked");
-                          firebaseFunctions!.httpsCallable("fetchBooks").call({
+                          firebaseFunctions!
+                              .httpsCallable("fetchAndEnrichBooks")
+                              .call({
                             "userId": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Books fetched");
@@ -207,7 +237,9 @@ class _ExplorePage extends State<ExplorePage> {
                             "user": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Book disliked");
-                          firebaseFunctions!.httpsCallable("fetchBooks").call({
+                          firebaseFunctions!
+                              .httpsCallable("fetchAndEnrichBooks")
+                              .call({
                             "userId": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Books fetched");
