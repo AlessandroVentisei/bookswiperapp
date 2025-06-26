@@ -9,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import './functions/user_checks.dart';
+import 'splash_screen.dart';
 
 ValueNotifier<User?> userCredential = ValueNotifier(null);
 FirebaseFunctions? firebaseFunctions;
@@ -41,7 +42,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'MatchBook',
       theme: appTheme,
-      home: MyHomePage(),
+      home: SplashScreenWrapper(),
       routes: {
         '/first': (context) => FirstOpen(),
         '/auth': (context) => AuthenticationPage(),
@@ -102,7 +103,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
+                        child: ElevatedButton.icon(
+                          icon: Icon(Icons.arrow_forward),
+                          iconAlignment: IconAlignment.end,
+                          label: Text('Get started'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: appTheme.colorScheme.secondary,
                             foregroundColor: appTheme.colorScheme.onSecondary,
@@ -111,10 +115,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           onPressed: () {
                             Navigator.pushNamed(context, '/first');
                           },
-                          child: Text('Go to First Page'),
                         ),
-                      ),
-                      SuggestedAuthorsWidget(), // Add the suggested authors widget here
+                      )
                     ],
                   ),
                 )
@@ -125,49 +127,36 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class SuggestedAuthorsWidget extends StatelessWidget {
+class SplashScreenWrapper extends StatefulWidget {
+  @override
+  _SplashScreenWrapperState createState() => _SplashScreenWrapperState();
+}
+
+class _SplashScreenWrapperState extends State<SplashScreenWrapper> {
+  bool _initialized = false;
+
+  void _onInitializationComplete() {
+    // Use a fade transition to MyHomePage
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => MyHomePage(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 700),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    List<Map<String, String>> authors = [
-      {'name': 'Author 1', 'image': 'assets/author1.jpg'},
-      {'name': 'Author 2', 'image': 'assets/author2.jpg'},
-      {'name': 'Author 3', 'image': 'assets/author3.jpg'},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Suggested Authors',
-          style: appTheme.textTheme.headlineMedium,
-        ),
-        SizedBox(height: 16),
-        SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: authors.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundImage: AssetImage(authors[index]['image']!),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      authors[index]['name']!,
-                      style: appTheme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
+    if (!_initialized) {
+      return SplashScreen(onInitializationComplete: _onInitializationComplete);
+    }
+    // This branch is no longer needed, but kept for safety
+    return MyHomePage();
   }
 }

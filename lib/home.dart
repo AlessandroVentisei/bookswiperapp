@@ -3,11 +3,13 @@ import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:bookswiperapp/main.dart';
 import 'package:bookswiperapp/new_user_setup.dart';
 import 'package:bookswiperapp/theme/theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:rive/rive.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -37,11 +39,14 @@ class _HomePage extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: 16,
               children: [
-                TextField(
+                /*TextField(
                   decoration: InputDecoration(
                     icon: Icon(Icons.search),
                     labelText: 'Authors, Titles, or Subjects',
                   ),
+                ),*/
+                SizedBox(
+                  height: 0,
                 ),
                 GestureDetector(
                   onTap: () {
@@ -92,6 +97,9 @@ class _HomePage extends State<HomePage> {
                     await FirebaseAuth.instance.signOut();
                   },
                   child: Text('Sign Out'),
+                ),
+                SizedBox(
+                  height: 24,
                 ),
               ],
             ),
@@ -197,17 +205,49 @@ Widget suggestedAuthors() {
 }
 
 Widget favouriteGenres() {
-  return Column(
-    spacing: 4,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        "Favorite Genres",
-        style: appTheme.textTheme.displayMedium,
-      ),
-      Text("Genres here"),
-    ],
-  );
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(
+      "Favorite Genres",
+      style: appTheme.textTheme.displayMedium,
+    ),
+    FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: CircularProgressIndicator(),
+          );
+        }
+        if (snapshot.hasError) {
+          return Text("Error loading genres.");
+        }
+        if (snapshot.hasData &&
+            snapshot.data!.exists &&
+            snapshot.data!.data() != null) {
+          final genres = (snapshot.data!.data()
+              as Map<String, dynamic>)['subjectKeywords'] as List<dynamic>?;
+          if (genres != null && genres.isNotEmpty) {
+            return Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: genres.map((genre) {
+                  return Text(
+                    genre.toString() + ",",
+                    style: appTheme.textTheme.bodyMedium,
+                  );
+                }).toList());
+          } else {
+            return Text("No favorite genres found.");
+          }
+        }
+        return Text("No favorite genres found.");
+      },
+    ),
+  ]);
 }
 
 Widget publishingPeriod() {
@@ -219,7 +259,6 @@ Widget publishingPeriod() {
         "Publishing Period",
         style: appTheme.textTheme.displayMedium,
       ),
-      Text("1924 - 1949"),
     ],
   );
 }

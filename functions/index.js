@@ -129,6 +129,7 @@ exports.updateSubjectKeywords = onDocumentCreated(
 
             // Assign scores to keywords from liked books, prioritizing recent ones
             const keywordScores = {};
+            const decadeCounts = {};
             const likedDocs = likedBooksSnapshot.docs;
             const total = likedDocs.length;
             likedDocs.forEach((doc, idx) => {
@@ -139,6 +140,14 @@ exports.updateSubjectKeywords = onDocumentCreated(
                     book.subject.forEach((subject) => {
                         keywordScores[subject] = (keywordScores[subject] || 0) + weight;
                     });
+                }
+                // Count by decade for favorite publishing period
+                if (book.first_publish_year) {
+                    const year = parseInt(book.first_publish_year);
+                    if (!isNaN(year)) {
+                        const decade = Math.floor(year / 10) * 10;
+                        decadeCounts[decade] = (decadeCounts[decade] || 0) + 1;
+                    }
                 }
             });
 
@@ -155,9 +164,17 @@ exports.updateSubjectKeywords = onDocumentCreated(
                 .slice(0, 5)
                 .map(([keyword]) => keyword);
 
-            await userDocRef.update({ subjectKeywords: topKeywords });
+            // Find favorite publishing period (decade with most liked books)
+            let favoritePublishingPeriod = null;
+            if (Object.keys(decadeCounts).length > 0) {
+                const topDecade = Object.entries(decadeCounts)
+                    .sort((a, b) => b[1] - a[1])[0][0];
+                favoritePublishingPeriod = `${topDecade}s`;
+            }
 
-            logger.log(`Subject keywords updated successfully for user ${userId}`, topKeywords);
+            await userDocRef.update({ subjectKeywords: topKeywords, favoritePublishingPeriod });
+
+            logger.log(`Subject keywords and favorite publishing period updated for user ${userId}`, { topKeywords, favoritePublishingPeriod });
         } catch (error) {
             logger.error(`Error updating subject keywords for user ${userId}`, error);
         }
@@ -257,8 +274,8 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
         const subjectResponse = await axios.get(subjectUrl);
         const workCount = subjectResponse.data.work_count || 0;
         if (workCount === 0) {continue};
-        // Pick a random offset between 0 and top 2% of workCount (limit to 12 per OpenLibrary API)
-        const maxOffset = Math.max(0, Math.round(workCount/50));
+        // Pick a random offset between 0 and top 1% of workCount (limit to 12 per OpenLibrary API)
+        const maxOffset = Math.max(0, Math.round(workCount/100));
         const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
         // Fetch a random page of works for this subject
         const worksUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true&offset=${randomOffset}`;
@@ -296,14 +313,22 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
             if (!editionsData || !editionsData.entries || editionsData.entries.length === 0) continue;
             const firstEdition = getMostRecentEdition(editionsData.entries);
             if(!firstEdition) continue;
-            for (const author of book.authors || []) {
-                const authorUrl = `https://openlibrary.org${author.key}.json`;
-                const authorResponse = await axios.get(authorUrl);
-                const authorData = authorResponse.data;
-                author.details = authorData;
+            // Fetch all author details in parallel and attach to authors array
+            if (Array.isArray(book.authors)) {
+                book.authors = await Promise.all(
+                    book.authors.map(async (author) => {
+                        // Support both { key } and { author: { key } }
+                        const authorKey = author.key || (author.author && author.author.key);
+                        if (authorKey) {
+                            const authorUrl = `https://openlibrary.org${authorKey}.json`;
+                            const authorResponse = await axios.get(authorUrl);
+                            return { ...author, details: authorResponse.data };
+                        }
+                        return author;
+                    })
+                );
             }
-            enrichedBooks.push({ ...book, ...firstEdition });
-        } catch (error) {
+            enrichedBooks.push({ ...book, ...firstEdition, authors: book.authors }); } catch (error) {
             logger.error(`Error enriching book ${book.key}`, error);
         }
     }

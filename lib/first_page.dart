@@ -55,18 +55,36 @@ class _FirstOpenState extends State<FirstOpen> {
       Container(
         height: 600,
         width: double.infinity,
+        padding: EdgeInsets.all(24),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF1E1E1E), Color(0xFF252525)],
+            stops: [0, 1.0],
+            colors: [Color(0xFF252525), Color(0xFF1E1E1E)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('2', style: appTheme.textTheme.headlineMedium),
+            Container(
+                constraints: BoxConstraints.expand(width: 60, height: 60),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Color.fromARGB(65, 140, 140, 140),
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  '👎',
+                  style: TextStyle(fontSize: 24),
+                )),
+            Text('Swipe Left', style: appTheme.textTheme.headlineMedium),
+            Text(
+                "If you don't like the look of a book, simply swipe left to dislike it.",
+                style: appTheme.textTheme.bodyLarge),
           ],
         ),
       ),
@@ -88,16 +106,22 @@ class _FirstOpenState extends State<FirstOpen> {
         ],
       ),
       body: CardSwiper(
+        isLoop: false,
         cardBuilder: (context, index, percentThresholdX, percentThresholdY) {
+          if (index < 0 || index >= cards.length) {
+            Navigator.pushReplacementNamed(context, "/auth");
+            return Container(); // Return an empty container for out-of-bounds indices
+          }
+          // Ensure index is within bounds
           return cards[index];
         },
         onSwipe: (previousIndex, currentIndex, direction) {
-          setState(() {
-            cardIndex = currentIndex!.toInt();
-          });
           previousIndex == 1
               ? Navigator.pushReplacementNamed(context, "/auth")
               : print(currentIndex);
+          setState(() {
+            cardIndex = currentIndex!.toInt();
+          });
           return true;
         },
         allowedSwipeDirection: AllowedSwipeDirection.only(

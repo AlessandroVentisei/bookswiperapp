@@ -7,7 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
+import 'package:rive/rive.dart';
 import 'dart:math';
+import 'package:url_launcher/url_launcher.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -49,38 +51,25 @@ class _ExplorePage extends State<ExplorePage> {
 
     return Scaffold(
         appBar: AppBar(
-            scrolledUnderElevation: 10,
-            elevation: 0,
-            shadowColor: Colors.black45,
-            title: Text(
-              'Explore',
-              style: appTheme.textTheme.headlineMedium,
-            ),
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back_ios),
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => HomePage(),
-                  ),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.upload),
-                onPressed: () {
-                  firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({
-                    "userId": FirebaseAuth.instance.currentUser!.uid,
-                  }).then((value) {
-                    print("Books fetched successfully");
-                  }).catchError((error) {
-                    print("Error fetching books: $error");
-                  });
-                },
-              ),
-            ]),
+          scrolledUnderElevation: 10,
+          elevation: 0,
+          shadowColor: Colors.black45,
+          title: Text(
+            'Explore',
+            style: appTheme.textTheme.headlineMedium,
+          ),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios),
+            onPressed: () {
+              Navigator.pop(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => HomePage(),
+                ),
+              );
+            },
+          ),
+        ),
         backgroundColor: appTheme.colorScheme.primary,
         body: StreamBuilder<List<Book>>(
           stream: _booksStream(),
@@ -96,7 +85,24 @@ class _ExplorePage extends State<ExplorePage> {
                 "userId": FirebaseAuth.instance.currentUser!.uid,
               });
               return Center(
-                child: Text('No books available. Please check back later.'),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                        width: 150,
+                        height: 150,
+                        child: RiveAnimation.asset(
+                          '/Users/Alex/Desktop/FlutterDev/bookswiperapp/lib/assets/loading_book.riv',
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                          animations: const ['loading'],
+                        )),
+                    Text("Finding more books for you...",
+                        style: appTheme.textTheme.bodyLarge),
+                  ],
+                ),
               );
             }
 
@@ -154,45 +160,70 @@ class _ExplorePage extends State<ExplorePage> {
                             spacing: 6,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.end,
+                                children: [
+                                  Text(
+                                    book.title,
+                                    style: appTheme.textTheme.headlineMedium,
+                                    overflow: TextOverflow.fade,
+                                  ),
+                                  Text(book.data["publish_date"] ?? '',
+                                      style: appTheme.textTheme.bodyMedium),
+                                ],
+                              ),
+                              SizedBox(height: 4),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: book.authors
+                                    .map((author) => author["details"]["name"])
+                                    .toSet()
+                                    .map((name) => Text(
+                                          name,
+                                          style: appTheme.textTheme.bodyMedium,
+                                        ))
+                                    .toList(),
+                              ),
+                              if (book.description.isNotEmpty) ...[
+                                SizedBox(height: 8),
+                                Text(
+                                  book.description,
+                                  style: appTheme.textTheme.bodyMedium,
+                                ),
+                              ],
+                              Container(
+                                width: double.infinity,
+                                alignment: Alignment.centerRight,
+                                child: ElevatedButton.icon(
+                                  icon: Icon(Icons.open_in_new),
+                                  label: Text('View on Bookshop.org'),
+                                  onPressed: () {
+                                    final isbn = book.data['isbn_13'] is List &&
+                                            book.data['isbn_13'].isNotEmpty
+                                        ? book.data['isbn_13'][0]
+                                        : (book.data['isbn_13'] ?? '');
+                                    if (isbn != null && isbn != '') {
+                                      final url =
+                                          'https://uk.bookshop.org/search?affiliate=15242&keywords=${book.title.replaceAll(' ', '+')}&isbn=$isbn';
+                                      launchUrl(Uri.parse(url),
+                                          mode: LaunchMode.externalApplication);
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                            content: Text(
+                                                'No ISBN available for this book.')),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
                               Text(
-                                book.title,
-                                style: appTheme.textTheme.headlineMedium,
-                                overflow: TextOverflow.fade,
-                              ),
-                              FutureBuilder<List<String>>(
-                                // Fetch author names
-                                future: Future.wait(
-                                    book.authors.map((author) async {
-                                  final authorData = await fetchAuthorData(
-                                      author['key'] ?? '');
-                                  return authorData != null
-                                      ? authorData['personal_name'] as String
-                                      : 'Unknown Author';
-                                })),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return Text('Loading authors...',
-                                        style: appTheme.textTheme.bodyMedium);
-                                  } else if (snapshot.hasError) {
-                                    return Text('Error loading authors',
-                                        style: appTheme.textTheme.bodyMedium);
-                                  } else {
-                                    final names = snapshot.data ?? [];
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: names
-                                          .map((name) => Text(name,
-                                              style: appTheme
-                                                  .textTheme.bodyMedium))
-                                          .toList(),
-                                    );
-                                  }
-                                },
-                              ),
-                              Text(book.description,
-                                  style: appTheme.textTheme.bodyMedium)
+                                "Subjects: ${book.subjects.toString().replaceAll("[", "").replaceAll("]", "")}",
+                              )
                             ],
                           ),
                         ]),

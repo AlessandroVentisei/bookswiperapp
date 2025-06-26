@@ -25,6 +25,7 @@ class Book {
   List<String> get subjects =>
       List<String>.from(data['subject'] ?? data['subjects'] ?? []);
   List<Map<String, dynamic>> get authors {
+    print('Authors: ${data['authors']}');
     if (data['authors'] is List) {
       return List<Map<String, dynamic>>.from((data['authors']));
     }
@@ -124,22 +125,5 @@ uploadTrendingBooks(User user) async {
   } catch (e) {
     // Handle errors (e.g., log them)
     print('Error loading JSON or processing data: $e');
-  }
-}
-
-Future<Map<String, dynamic>?> fetchAuthorData(String authorKey) async {
-  final url = 'https://openlibrary.org$authorKey.json?details=true';
-  try {
-    final response = await http.get(Uri.parse(url));
-    // print(response.body);
-    if (response.statusCode == 200) {
-      return json.decode(response.body) as Map<String, dynamic>;
-    } else {
-      print('Failed to fetch author data: \\${response.statusCode}');
-      return null;
-    }
-  } catch (e) {
-    print('Error fetching author data: $e');
-    return null;
   }
 }
