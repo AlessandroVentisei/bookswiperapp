@@ -6,6 +6,8 @@ const test = require('firebase-functions-test')({
 const admin = require('firebase-admin');
 const myFunctions = require('../index');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 jest.mock('axios');
 
 describe('Queue Functions', () => {
@@ -44,6 +46,7 @@ describe('Queue Functions', () => {
     const editionsResponse = require('./editionsResponse.json');
     const subjectsResponse = require('./subjectResponse.json');
     const authorResponse = require('./authorResponse.json');
+    const aliceinWonderlandResponse = fs.readFileSync(path.join(__dirname, 'aliceinwonderland.html'), 'utf8');
     // Mock OpenLibrary API responses
     axios.get.mockImplementation((url) => {
         if (url.includes('subjects/test.json?details=true&offset=')) {
@@ -56,6 +59,8 @@ describe('Queue Functions', () => {
             return Promise.resolve({ data: editionsResponse });
         } else if (url.endsWith('/authors/OL22098A.json')) {
             return Promise.resolve({ data: authorResponse });
+        } else if (url.startsWith('https://uk.bookshop.org/search')) {
+          return Promise.resolve({ data: aliceinWonderlandResponse });
         }
         return {};
     });
@@ -73,5 +78,6 @@ describe('Queue Functions', () => {
     expect(data.isbn_13[0]).toEqual(expectedResponse.isbn_13[0]);
     expect(data.cover_id[0]).toBe(expectedResponse.cover_id[0]);
     expect(data.languages[0].key).toEqual('/languages/eng');
+    expect(data.bookshop_cover_url).toBe(expectedResponse.bookshop_cover_url);
     expect(data.key).toEqual(expectedResponse.key);});
 });

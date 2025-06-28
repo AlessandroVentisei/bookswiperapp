@@ -10,6 +10,7 @@ import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import './functions/user_checks.dart';
 import 'splash_screen.dart';
+import 'author_details_page.dart';
 
 ValueNotifier<User?> userCredential = ValueNotifier(null);
 FirebaseFunctions? firebaseFunctions;
@@ -48,6 +49,14 @@ class MyApp extends StatelessWidget {
         '/auth': (context) => AuthenticationPage(),
         '/explore': (context) => HomePage(),
         '/setup': (context) => NewUserSetup(),
+        '/authorDetails': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments
+              as Map<String, dynamic>;
+          return AuthorDetailsPage(
+            authorKey: args['authorKey'],
+            authorName: args['authorName'],
+          );
+        },
       },
     );
   }

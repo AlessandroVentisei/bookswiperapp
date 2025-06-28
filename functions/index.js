@@ -6,7 +6,7 @@ const { initializeApp } = require("firebase-admin/app");
 const functions = require("firebase-functions");
 const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { user } = require("firebase-functions/v1/auth");
-const { getMostRecentEdition, parseYear } = require("./edition_functions.js");
+const { getMostRecentEdition, parseYear, fetchBookshopCover } = require("./edition_functions.js");
 
 initializeApp(); // Initialize Firebase Admin SDK
 const db = getFirestore(); // Get Firestore instance
@@ -328,6 +328,9 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
                     })
                 );
             }
+            // Scrape Bookshop.org for a cover image
+            const bookshopCover = await fetchBookshopCover(book.title, book.authors && book.authors[0]?.name);
+            book.bookshop_cover_url = bookshopCover || null;
             enrichedBooks.push({ ...book, ...firstEdition, authors: book.authors }); } catch (error) {
             logger.error(`Error enriching book ${book.key}`, error);
         }

@@ -11,6 +11,9 @@ import 'package:rive/rive.dart';
 import 'dart:math';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../author_widget.dart';
+import 'package:bookswiperapp/bookshop_link_button.dart';
+
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
 
@@ -174,16 +177,18 @@ class _ExplorePage extends State<ExplorePage> {
                                       style: appTheme.textTheme.bodyMedium),
                                 ],
                               ),
-                              SizedBox(height: 4),
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 4,
                                 children: book.authors
-                                    .map((author) => author["details"]["name"])
+                                    .where((author) =>
+                                        author["details"] != null &&
+                                        author["details"]["name"] != null &&
+                                        author["key"] != null)
                                     .toSet()
-                                    .map((name) => Text(
-                                          name,
-                                          style: appTheme.textTheme.bodyMedium,
+                                    .map((author) => AuthorWidget(
+                                          authorName: author["details"]["name"],
+                                          authorKey: author["key"],
                                         ))
                                     .toList(),
                               ),
@@ -196,29 +201,13 @@ class _ExplorePage extends State<ExplorePage> {
                               ],
                               Container(
                                 width: double.infinity,
-                                alignment: Alignment.centerRight,
-                                child: ElevatedButton.icon(
-                                  icon: Icon(Icons.open_in_new),
-                                  label: Text('View on Bookshop.org'),
-                                  onPressed: () {
-                                    final isbn = book.data['isbn_13'] is List &&
-                                            book.data['isbn_13'].isNotEmpty
-                                        ? book.data['isbn_13'][0]
-                                        : (book.data['isbn_13'] ?? '');
-                                    if (isbn != null && isbn != '') {
-                                      final url =
-                                          'https://uk.bookshop.org/search?affiliate=15242&keywords=${book.title.replaceAll(' ', '+')}&isbn=$isbn';
-                                      launchUrl(Uri.parse(url),
-                                          mode: LaunchMode.externalApplication);
-                                    } else {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                            content: Text(
-                                                'No ISBN available for this book.')),
-                                      );
-                                    }
-                                  },
+                                alignment: Alignment.centerLeft,
+                                child: BookshopLinkButton(
+                                  title: book.title,
+                                  isbn: (book.data['isbn_13'] is List &&
+                                          book.data['isbn_13'].isNotEmpty)
+                                      ? book.data['isbn_13'][0]
+                                      : (book.data['isbn_13'] ?? null),
                                 ),
                               ),
                               Text(

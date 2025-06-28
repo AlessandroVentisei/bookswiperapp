@@ -10,6 +10,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rive/rive.dart';
+import 'recently_liked_books_carousel.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -113,46 +114,10 @@ class _HomePage extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Recommended Books",
+          "Recently liked books",
           style: appTheme.textTheme.displayMedium,
         ),
-        Container(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: 10,
-            itemBuilder: (context, index) {
-              return Container(
-                width: 100,
-                margin: const EdgeInsets.fromLTRB(0, 0, 12, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Image.network(
-                        'https://picsum.photos/200/300',
-                        height: 150,
-                        width: 100,
-                        fit: BoxFit.fill,
-                      ),
-                    ),
-                    Text(
-                      'Book Title which is longer than the author',
-                      overflow: TextOverflow.ellipsis,
-                      style: appTheme.textTheme.bodyMedium,
-                    ),
-                    Text(
-                      'Author which is quite long',
-                      overflow: TextOverflow.ellipsis,
-                      style: appTheme.textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
+        RecentlyLikedBooksCarousel(),
       ],
     );
   }
