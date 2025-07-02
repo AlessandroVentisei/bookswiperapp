@@ -164,17 +164,17 @@ exports.updateSubjectKeywords = onDocumentCreated(
                 .slice(0, 5)
                 .map(([keyword]) => keyword);
 
-            // Find favorite publishing period (decade with most liked books)
-            let favoritePublishingPeriod = null;
+            // Find favourite publishing period (decade with most liked books)
+            let favouritePublishingPeriod = null;
             if (Object.keys(decadeCounts).length > 0) {
                 const topDecade = Object.entries(decadeCounts)
                     .sort((a, b) => b[1] - a[1])[0][0];
-                favoritePublishingPeriod = `${topDecade}s`;
+                favouritePublishingPeriod = `${topDecade}s`;
             }
 
-            await userDocRef.update({ subjectKeywords: topKeywords, favoritePublishingPeriod });
+            await userDocRef.update({ subjectKeywords: topKeywords, favouritePublishingPeriod });
 
-            logger.log(`Subject keywords and favorite publishing period updated for user ${userId}`, { topKeywords, favoritePublishingPeriod });
+            logger.log(`Subject keywords and favourite publishing period updated for user ${userId}`, { topKeywords, favouritePublishingPeriod });
         } catch (error) {
             logger.error(`Error updating subject keywords for user ${userId}`, error);
         }
@@ -329,7 +329,7 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
                 );
             }
             // Scrape Bookshop.org for a cover image
-            const bookshopCover = await fetchBookshopCover(book.title, book.authors && book.authors[0]?.name);
+            const bookshopCover = await fetchBookshopCover(book.title, book.authors[0]?.name);
             book.bookshop_cover_url = bookshopCover || null;
             enrichedBooks.push({ ...book, ...firstEdition, authors: book.authors }); } catch (error) {
             logger.error(`Error enriching book ${book.key}`, error);

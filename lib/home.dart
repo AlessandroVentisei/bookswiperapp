@@ -10,7 +10,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rive/rive.dart';
-import 'recently_liked_books_carousel.dart';
+import 'widgets/recently_liked_books_carousel.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -221,8 +221,41 @@ Widget publishingPeriod() {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        "Publishing Period",
+        "Favourite Publishing Period",
         style: appTheme.textTheme.displayMedium,
+      ),
+      FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('users')
+            .doc(FirebaseAuth.instance.currentUser!.uid)
+            .get(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: CircularProgressIndicator(),
+            );
+          }
+          if (snapshot.hasError) {
+            return Text("Error loading genres.");
+          }
+          if (snapshot.hasData &&
+              snapshot.data!.exists &&
+              snapshot.data!.data() != null) {
+            final user = snapshot.data!.data() as Map<String, dynamic>;
+            final favouritePublishingPeriod =
+                user['favouritePublishingPeriod'] as String?;
+            if (favouritePublishingPeriod != null) {
+              return Text(
+                favouritePublishingPeriod,
+                style: appTheme.textTheme.bodyMedium,
+              );
+            } else {
+              return Text("No favorite publishing period found.");
+            }
+          }
+          return Text("No favorite publishing period found.");
+        },
       ),
     ],
   );

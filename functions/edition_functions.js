@@ -1,4 +1,3 @@
-const cheerio = require('cheerio');
 const axios = require('axios');
 
 // Function to parse the publish_date and extract the year
@@ -46,33 +45,20 @@ function getMostRecentEdition(editions) {
   return byScore[0] || null;
 }
 
-// Helper to scrape Bookshop.org for a cover image
-async function fetchBookshopCover(title) {
+// Helper to fetch cover image from Cloud Run service
+async function fetchBookshopCover(title, authorName) {
     try {
-        const searchUrl = `https://uk.bookshop.org/search?keywords=${encodeURIComponent(title)}`;
-        const response = await axios.get(searchUrl, { timeout: 5000 });
-        const $ = cheerio.load(response.data);
-
-        // Find the first search result card
-        const firstCard = $('.column.is-one-fifth .search-result-card').first();
-        if (firstCard.length === 0) return null;
-        const imgTag = firstCard.find('img').first();
-        let img = null;
-        const srcset = imgTag.attr('srcset');
-        if (srcset) {
-            // Get the last URL in srcset (highest-res)
-            const urls = srcset.split(',').map(s => s.trim().split(' ')[0]);
-            img = urls[urls.length - 1];
-        }
-        if (!img) {
-            img = imgTag.attr('src');
-        }
-        if (img && img.startsWith('http')) {
-            return img;
+        const response = await axios.post(
+            'https://bookshop-cover-scraper-131230945810.europe-west2.run.app/cover',
+            { title, author: authorName },
+            { timeout: 5000 }
+        );
+        if (response.data && response.data.coverUrl) {
+            return response.data.coverUrl;
         }
         return null;
     } catch (err) {
-        logger.error('Bookshop.org scrape failed', err);
+        logger.error('Cloud Run cover fetch failed', err);
         return null;
     }
 }

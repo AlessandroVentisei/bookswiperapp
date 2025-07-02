@@ -25,7 +25,6 @@ class Book {
   List<String> get subjects =>
       List<String>.from(data['subject'] ?? data['subjects'] ?? []);
   List<Map<String, dynamic>> get authors {
-    print('Authors: ${data['authors']}');
     if (data['authors'] is List) {
       return List<Map<String, dynamic>>.from((data['authors']));
     }
@@ -51,6 +50,8 @@ class Book {
     }
     return '';
   }
+
+  String? get bookshopCoverUrl => data['bookshop_cover_url'];
 }
 
 Future<List<Book>> getBooks(User user) async {

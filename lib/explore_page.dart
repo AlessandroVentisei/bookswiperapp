@@ -11,8 +11,9 @@ import 'package:rive/rive.dart';
 import 'dart:math';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../author_widget.dart';
-import 'package:bookswiperapp/bookshop_link_button.dart';
+import 'widgets/author_widget.dart';
+import 'package:bookswiperapp/widgets/bookshop_link_button.dart';
+import 'widgets/book_cover_image.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -139,23 +140,8 @@ class _ExplorePage extends State<ExplorePage> {
                             child: SizedBox(
                               width: 356,
                               height: 522,
-                              child: Image.network(
-                                'https://covers.openlibrary.org/b/id/${book.cover}-L.jpg',
-                                width: 356,
-                                height: 522,
-                                fit: BoxFit.cover,
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      color: appTheme.colorScheme.secondary,
-                                      backgroundColor:
-                                          appTheme.colorScheme.secondary,
-                                      strokeWidth: 2,
-                                    ),
-                                  );
-                                },
+                              child: BookCoverImage(
+                                book: book,
                               ),
                             ),
                           ),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bookswiperapp/theme/theme.dart';
-import 'package:bookswiperapp/author_widget.dart';
-import 'package:bookswiperapp/bookshop_link_button.dart';
+import 'package:bookswiperapp/widgets/author_widget.dart';
+import 'package:bookswiperapp/widgets/bookshop_link_button.dart';
 
 class BookDetailsPage extends StatelessWidget {
   final Map<String, dynamic> book;
