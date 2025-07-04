@@ -40,6 +40,12 @@ final ThemeData appTheme = ThemeData(
         color: surfaceColor,
         height: 1.0,
         fontStyle: FontStyle.italic),
+    displaySmall: GoogleFonts.sortsMillGoudy(
+        fontSize: 16,
+        fontWeight: FontWeight.w100,
+        color: surfaceColor,
+        height: 1.0,
+        fontStyle: FontStyle.normal),
     bodyLarge: GoogleFonts.sourceSerif4(
         fontSize: 20.0, color: surfaceColor, fontWeight: FontWeight.w200),
     bodyMedium: GoogleFonts.sourceSerif4(
