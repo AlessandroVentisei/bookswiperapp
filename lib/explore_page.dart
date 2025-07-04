@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:bookswiperapp/home.dart';
 import 'package:bookswiperapp/main.dart';
@@ -24,10 +26,36 @@ class ExplorePage extends StatefulWidget {
 
 class _ExplorePage extends State<ExplorePage> {
   int cardIndex = 0;
+  List<Book> _books = [];
   bool isProcessingSwipe = false; // Add a flag to track ongoing calls
+  StreamSubscription<List<Book>>? _booksSubscription;
+
+  // Stream to listen to real-time updates from Firestore
+  Stream<List<Book>> _booksStream() {
+    final user = FirebaseAuth.instance.currentUser!;
+    final userRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('books')
+        .orderBy('index', descending: false);
+    return userRef.snapshots().map((snapshot) => snapshot.docs
+        .map((doc) => Book.fromFirestore(doc.data(), doc.id))
+        .toList());
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _booksSubscription = _booksStream().listen((booksFromFirestore) {
+      setState(() {
+        _books = booksFromFirestore;
+      });
+    });
+  }
 
   @override
   void dispose() {
+    _booksSubscription?.cancel();
     super.dispose();
   }
 
@@ -39,19 +67,6 @@ class _ExplorePage extends State<ExplorePage> {
 
     final CardSwiperController _swiperController = CardSwiperController();
     List<Book>? _previousBooks;
-
-    // Stream to listen to real-time updates from Firestore
-    Stream<List<Book>> _booksStream() {
-      final user = FirebaseAuth.instance.currentUser!;
-      final userRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('books')
-          .orderBy('index', descending: false);
-      return userRef.snapshots().map((snapshot) => snapshot.docs
-          .map((doc) => Book.fromFirestore(doc.data(), doc.id))
-          .toList());
-    }
 
     return Scaffold(
         appBar: AppBar(
@@ -84,7 +99,7 @@ class _ExplorePage extends State<ExplorePage> {
               print('Error in StreamBuilder: \\${snapshot.error}');
               return Center(
                   child: Text('Error loading books. Please try again.'));
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            } else if (_books.isEmpty) {
               firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({
                 "userId": FirebaseAuth.instance.currentUser!.uid,
               });
@@ -110,16 +125,7 @@ class _ExplorePage extends State<ExplorePage> {
               );
             }
 
-            List<Book> books = snapshot.data!;
-            // Reset swiper index if the books list changed length (e.g., after swipe)
-            if (_previousBooks != null &&
-                books.length != _previousBooks!.length) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _swiperController.moveTo(0);
-              });
-            }
-            _previousBooks = List<Book>.from(books);
-            List<Container> cards = books.map((book) {
+            List<Container> cards = _books.map((book) {
               return Container(
                   height: 400, // Fixed height for the card
                   width: double.infinity,
@@ -212,17 +218,17 @@ class _ExplorePage extends State<ExplorePage> {
                   width: constraints.maxWidth,
                   child: CardSwiper(
                     controller: _swiperController, // Add this line
-                    cardsCount: cards.length,
-                    numberOfCardsDisplayed: books.length > 3 ? 3 : books.length,
+                    cardsCount: _books.length,
+                    numberOfCardsDisplayed: 2,
                     backCardOffset: Offset(0, 40),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                     scale: 1.0,
-                    onSwipe: (previousIndex, currentIndex, direction) async {
+                    onSwipe: (previousIndex, currentIndex, direction) {
                       if (direction == CardSwiperDirection.right) {
                         try {
                           firebaseFunctions!.httpsCallable("likeBook").call({
-                            "book": books[previousIndex].docId,
+                            "book": _books[previousIndex].docId,
                             "user": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Book Liked");
@@ -239,7 +245,7 @@ class _ExplorePage extends State<ExplorePage> {
                       } else if (direction == CardSwiperDirection.left) {
                         try {
                           firebaseFunctions!.httpsCallable("dislikeBook").call({
-                            "book": books[previousIndex].docId,
+                            "book": _books[previousIndex].docId,
                             "user": FirebaseAuth.instance.currentUser!.uid,
                           });
                           print("Book disliked");
@@ -254,12 +260,14 @@ class _ExplorePage extends State<ExplorePage> {
                           print("Error liking book: $e");
                         }
                       }
+                      setState(() {
+                        _books.removeAt(previousIndex);
+                      });
                       return true;
                     },
                     cardBuilder:
                         (context, index, percentThresholdX, percentThresholdY) {
-                      _onCardChanged(index);
-                      return cards[index];
+                      return cards[index + 1];
                     },
                   ),
                 );

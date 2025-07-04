@@ -17,6 +17,11 @@ class Book {
     return Book(data: data, docId: docId);
   }
 
+  // Create a Book from a Map (e.g., from JSON or Firestore)
+  factory Book.fromMap(Map<String, dynamic> map, {required String docId}) {
+    return Book(data: map, docId: docId);
+  }
+
   Map<String, dynamic> toFirestore() => data;
 
   String get title => data['title'] ?? '';

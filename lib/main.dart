@@ -11,6 +11,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import './functions/user_checks.dart';
 import 'splash_screen.dart';
 import 'author_details_page.dart';
+import 'settings_page.dart'; // <-- Import the settings page
 
 ValueNotifier<User?> userCredential = ValueNotifier(null);
 FirebaseFunctions? firebaseFunctions;
@@ -49,6 +50,7 @@ class MyApp extends StatelessWidget {
         '/auth': (context) => AuthenticationPage(),
         '/explore': (context) => HomePage(),
         '/setup': (context) => NewUserSetup(),
+        '/settings': (context) => SettingsPage(), // <-- Added
         '/authorDetails': (context) {
           final args = ModalRoute.of(context)!.settings.arguments
               as Map<String, dynamic>;

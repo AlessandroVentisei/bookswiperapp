@@ -2,6 +2,7 @@ import 'package:bookswiperapp/explore_page.dart';
 import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:bookswiperapp/main.dart';
 import 'package:bookswiperapp/new_user_setup.dart';
+import 'package:bookswiperapp/settings_page.dart';
 import 'package:bookswiperapp/theme/theme.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -11,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rive/rive.dart';
 import 'widgets/recently_liked_books_carousel.dart';
+import 'package:bookswiperapp/widgets/suggested_authors_widget.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -30,6 +32,14 @@ class _HomePage extends State<HomePage> {
                 'MatchBook',
                 style: appTheme.textTheme.headlineMedium,
               )),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.settings),
+              onPressed: () {
+                Navigator.pushNamed(context, '/settings');
+              },
+            ),
+          ],
         ),
         backgroundColor: appTheme.colorScheme.primary,
         body: SingleChildScrollView(
@@ -90,7 +100,7 @@ class _HomePage extends State<HomePage> {
                   ),
                 ),
                 recommendedBooks(),
-                suggestedAuthors(),
+                const SuggestedAuthorsWidget(),
                 favouriteGenres(),
                 publishingPeriod(),
                 ElevatedButton(
@@ -121,52 +131,6 @@ class _HomePage extends State<HomePage> {
       ],
     );
   }
-}
-
-Widget suggestedAuthors() {
-  return Column(
-    spacing: 10,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        "Suggested Authors",
-        style: appTheme.textTheme.displayMedium,
-      ),
-      Container(
-        height: 125,
-        margin: const EdgeInsets.fromLTRB(0, 0, 0, 24),
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          itemCount: 10,
-          itemBuilder: (context, index) {
-            return Container(
-              width: 100,
-              margin: const EdgeInsets.fromLTRB(0, 0, 12, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: Image.network(
-                      'https://picsum.photos/200/300',
-                      height: 100,
-                      width: 100,
-                      fit: BoxFit.fill,
-                    ),
-                  ),
-                  Text(
-                    'George Orwell',
-                    overflow: TextOverflow.ellipsis,
-                    style: appTheme.textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    ],
-  );
 }
 
 Widget favouriteGenres() {

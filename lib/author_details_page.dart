@@ -1,4 +1,5 @@
 import 'package:bookswiperapp/theme/theme.dart';
+import 'package:bookswiperapp/widgets/bookshop_link_button.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -8,12 +9,20 @@ import 'package:rive/rive.dart';
 class AuthorDetailsPage extends StatefulWidget {
   final String authorKey;
   final String authorName;
+  final String? reason; // Optional reason for the author details page
+  final String? topWork; // Optional top work to highlight
+  final String? avatarUrl; // Optional avatar URL
+  final String? openLibraryUrl; // Optional Open Library URL
 
   const AuthorDetailsPage({
-    Key? key,
+    super.key,
     required this.authorKey,
     required this.authorName,
-  }) : super(key: key);
+    this.reason,
+    this.topWork,
+    this.avatarUrl,
+    this.openLibraryUrl,
+  });
 
   @override
   State<AuthorDetailsPage> createState() => _AuthorDetailsPageState();
@@ -35,6 +44,7 @@ class _AuthorDetailsPageState extends State<AuthorDetailsPage> {
   }
 
   Future<void> fetchAuthorDetails() async {
+    print(widget.reason);
     final url = 'https://openlibrary.org${widget.authorKey}.json';
     try {
       final response = await http.get(Uri.parse(url));
@@ -170,12 +180,31 @@ class _AuthorDetailsPageState extends State<AuthorDetailsPage> {
                             ),
                           ),
                         SizedBox(height: 8),
+                        if (widget.reason != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 24.0),
+                            child: Text(
+                              widget.reason!,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ),
                         if (authorData?['bio'] != null)
-                          Text(
-                            authorData!['bio'] is String
-                                ? authorData!['bio']
-                                : authorData!['bio']['value'] ?? '',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("Biography",
+                                  textAlign: TextAlign.left,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineSmall),
+                              SizedBox(height: 8),
+                              Text(
+                                authorData!['bio'] is String
+                                    ? authorData!['bio']
+                                    : authorData!['bio']['value'] ?? '',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
                           ),
                         if (authorData?['title'] != null) SizedBox(height: 16),
                         if (authorData?['birth_date'] != null)
@@ -208,6 +237,36 @@ class _AuthorDetailsPageState extends State<AuthorDetailsPage> {
                                   .toList(),
                             ),
                           ),
+                        if (widget.topWork != null)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                height: 24,
+                              ),
+                              Text(
+                                "Top Work",
+                                style: appTheme.textTheme.headlineSmall,
+                              ),
+                              ListTile(
+                                leading: BookshopLinkButton(
+                                  title: widget.topWork,
+                                  format: "small",
+                                ),
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(
+                                  widget.topWork.toString(),
+                                  style: appTheme.textTheme.bodyLarge,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                ),
+                                onTap: () {
+                                  launchUrl(Uri.parse(
+                                      'https://uk.bookshop.org/search?affiliate=15242&keywords=${("${widget.topWork} ${widget.authorName}").replaceAll(' ', '+')}'));
+                                },
+                              )
+                            ],
+                          ),
                         SizedBox(height: 24),
                         Text('Notable Works:',
                             style: appTheme.textTheme.headlineSmall),
@@ -218,12 +277,17 @@ class _AuthorDetailsPageState extends State<AuthorDetailsPage> {
                           )
                         else if (works != null && works!.isNotEmpty)
                           ...works!.take(5).map((work) => ListTile(
-                                leading: Icon(Icons.book,
-                                    size: 35,
-                                    color: appTheme.colorScheme.onPrimary),
+                                leading: BookshopLinkButton(
+                                  title: work['title'],
+                                  format: "small",
+                                ),
                                 contentPadding: EdgeInsets.zero,
-                                title: Text(work['title'] ?? 'Untitled',
-                                    style: appTheme.textTheme.bodyLarge),
+                                title: Text(
+                                  work['title'] ?? 'Untitled',
+                                  style: appTheme.textTheme.bodyLarge,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                ),
                                 subtitle: work['description'] != null
                                     ? Text(
                                         work['description'] is String
@@ -239,7 +303,7 @@ class _AuthorDetailsPageState extends State<AuthorDetailsPage> {
                                   final workKey = work['key'];
                                   if (workKey != null) {
                                     launchUrl(Uri.parse(
-                                        'https://openlibrary.org$workKey'));
+                                        'https://uk.bookshop.org/search?affiliate=15242&keywords=${work["title"]?.replaceAll(' ', '+') ?? ''}'));
                                   }
                                 },
                               )),

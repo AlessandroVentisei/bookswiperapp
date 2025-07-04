@@ -1,3 +1,4 @@
+import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -70,7 +71,8 @@ class RecentlyLikedBooksCarousel extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             itemCount: docs.length,
             itemBuilder: (context, index) {
-              final book = docs[index].data();
+              final book =
+                  Book(docId: docs[index].id, data: docs[index].data());
               return GestureDetector(
                 onTap: () {
                   Navigator.push(
@@ -89,25 +91,27 @@ class RecentlyLikedBooksCarousel extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child: Image.network(
-                          book['bookshop_cover_url'] ??
-                              'https://covers.openlibrary.org/b/id/${book['cover_id']}-L.jpg',
+                          book.bookshopCoverUrl ??
+                              (book.cover != 0
+                                  ? 'https://covers.openlibrary.org/b/id/${book.cover}-L.jpg'
+                                  : 'https://via.placeholder.com/100x150?text=No+Cover'),
                           height: 150,
                           width: 100,
                           fit: BoxFit.fill,
                         ),
                       ),
                       Text(
-                        book['title'] ?? 'No title available...',
+                        book.title.isNotEmpty
+                            ? book.title
+                            : 'No title available...',
                         overflow: TextOverflow.ellipsis,
                         style: appTheme.textTheme.bodyMedium,
                       ),
                       Text(
-                        (book['authors'] != null &&
-                                book['authors'] is List &&
-                                book['authors'].isNotEmpty &&
-                                book['authors'][0]['details'] != null)
-                            ? book['authors'][0]['details']['name'] ??
-                                'Unknown Author'
+                        (book.authors.isNotEmpty &&
+                                book.authors[0]['details'] != null &&
+                                book.authors[0]['details']['name'] != null)
+                            ? book.authors[0]['details']['name']
                             : 'Unknown Author',
                         overflow: TextOverflow.ellipsis,
                         style: appTheme.textTheme.bodySmall,

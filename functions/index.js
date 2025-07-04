@@ -7,7 +7,7 @@ const functions = require("firebase-functions");
 const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { user } = require("firebase-functions/v1/auth");
 const { getMostRecentEdition, parseYear, fetchBookshopCover } = require("./edition_functions.js");
-
+const { getGeminiAuthorSuggestions, enrichAuthorsWithOpenLibrary } = require('./author_functions.js');
 initializeApp(); // Initialize Firebase Admin SDK
 const db = getFirestore(); // Get Firestore instance
 
@@ -51,6 +51,11 @@ exports.likeBook = onCall(async (request, response) => {
         // Remove the book from the queue
         await userQueueRef.doc(book).delete();
 
+        // Count liked books and update shortlist every 10 likes
+        const likedBooksCount = (await likedBooksRef.get()).size;
+        if (likedBooksCount % 10 === 0) {
+            await updateShortlistedAuthorsForUser(user);
+        }
         return { message: "Book moved to likedBooks successfully." };
     } catch (error) {
         logger.error("Error moving book to likedBooks", error);
@@ -264,31 +269,37 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
         return;
     }
     await userDocRef.update({ isUpdating: true });
-
+    // Declare enrichedBooks at the top so it's in scope
+    const enrichedBooks = [];
+    try {
     // Fetch books based on subject keywords
     const books = [];
     for (const keyword of subjectKeywords) {
-        const formattedKeyword = keyword.replace(/\s+/g, "_").toLowerCase();
-        // First, get the work_count for this subject
-        const subjectUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true`;
-        const subjectResponse = await axios.get(subjectUrl);
-        const workCount = subjectResponse.data.work_count || 0;
-        if (workCount === 0) {continue};
-        // Pick a random offset between 0 and top 1% of workCount (limit to 12 per OpenLibrary API)
-        const maxOffset = Math.max(0, Math.round(workCount/100));
-        const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
-        // Fetch a random page of works for this subject
-        const worksUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true&offset=${randomOffset}`;
-        const worksResponse = await axios.get(worksUrl);
-        const bookData = worksResponse.data['works'] || [];
-        bookData.filter((book) => book.first_publish_year > 1980); // Filter out books published before 1980s (could be user parameter in the future)
-        const formattedBooks = bookData.map((book, indx) => ({
-            ...book,
-            createdAt: new Date(),
-            index: userCurrentIndex + indx
-        }));
-        userCurrentIndex += formattedBooks.length;
-        books.push(...formattedBooks);
+        try {
+            const formattedKeyword = keyword.replace(/\s+/g, "_").toLowerCase();
+            // First, get the work_count for this subject
+            const subjectUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true`;
+            const subjectResponse = await axios.get(subjectUrl);
+            const workCount = subjectResponse.data.work_count || 0;
+            if (workCount === 0) {continue};
+            // Pick a random offset between 0 and top 1% of workCount (limit to 12 per OpenLibrary API)
+            const maxOffset = Math.max(0, Math.round(workCount/100));
+            const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
+            // Fetch a random page of works for this subject
+            const worksUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true&offset=${randomOffset}`;
+            const worksResponse = await axios.get(worksUrl);
+            const bookData = worksResponse.data['works'] || [];
+            bookData.filter((book) => book.first_publish_year > 1980); // Filter out books published before 1980s (could be user parameter in the future)
+            const formattedBooks = bookData.map((book, indx) => ({
+                ...book,
+                createdAt: new Date(),
+                index: userCurrentIndex + indx
+            }));
+            userCurrentIndex += formattedBooks.length;
+            books.push(...formattedBooks);
+        } catch (error) {
+            logger.error(`Error fetching books for keyword "${keyword}" for user ${userId}`, error);
+        }
     }
     // Filter out books that are already in the queue/liked/disliked
     console.log(`Fetched ${books.length} books for user ${userId} with keywords: ${subjectKeywords.join(", ")}`);
@@ -303,7 +314,6 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
         return;
     }
     // Enrich and filter books
-    const enrichedBooks = [];
     for (const book of newBooks) {
         try {
             // Fetch editions for the book
@@ -329,11 +339,20 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
                 );
             }
             // Scrape Bookshop.org for a cover image
-            const bookshopCover = await fetchBookshopCover(book.title, book.authors[0]?.name);
-            book.bookshop_cover_url = bookshopCover || null;
+            try {
+                const bookshopCover = await fetchBookshopCover(book.title, book.authors[0]?.name);
+                book.bookshop_cover_url = bookshopCover || null;
+            } catch (error) {
+                logger.error(`Error fetching bookshop cover for book ${book.key}`, error);
+            }
             enrichedBooks.push({ ...book, ...firstEdition, authors: book.authors }); } catch (error) {
             logger.error(`Error enriching book ${book.key}`, error);
         }
+    }
+    } catch (error) {
+        logger.error(`Error fetching books for user ${userId}`, error);
+        await userDocRef.update({ isUpdating: false });
+        throw new HttpsError("internal", "Failed to fetch and enrich books.");
     }
 
     if (enrichedBooks.length === 0) {
@@ -355,3 +374,66 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
     logger.log(`Fetched and stored ${enrichedBooks.length} enriched books for user ${userId}`);
     return { message: "Books fetched, enriched, and stored successfully."};
 });
+
+
+async function updateShortlistedAuthorsForUser(userId) {
+    const likedBooksRef = db.collection("users").doc(userId).collection("likedBooks");
+    const userDocRef = db.collection("users").doc(userId);
+    try {
+        const likedBooksSnapshot = await likedBooksRef.get();
+        if (likedBooksSnapshot.empty) return;
+        // Tally authors
+        const authorCounts = {};
+        likedBooksSnapshot.forEach(doc => {
+            const book = doc.data();
+            if (Array.isArray(book.authors)) {
+                book.authors.forEach(author => {
+                    const authorKey = author.key || (author.author && author.author.key);
+                    const authorName = author.details?.name || author.name || null;
+                    if (authorKey && authorName) {
+                        const id = `${authorKey}|${authorName}`;
+                        if (!authorCounts[id]) {
+                            authorCounts[id] = { key: authorKey, name: authorName, count: 0 };
+                        }
+                        authorCounts[id].count += 1;
+                    }
+                });
+            }
+        });
+        // Sort and take top 5
+        const topAuthors = Object.values(authorCounts)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+        // get more suggestions from Gemini
+        const userDoc = await userDocRef.get();
+        const subjectKeywords = userDoc.data().subjectKeywords || [];
+        const likedAuthors = topAuthors.map(author => ({ name: author.name, key: author.key }));
+        let geminiSuggestions = [];
+        try {
+            geminiSuggestions = await getGeminiAuthorSuggestions(likedAuthors, subjectKeywords);
+        } catch (e) {
+            logger.error('Gemini suggestion error', e);
+        }
+        // Enrich Gemini suggestions with Open Library data
+        let enrichedSuggestions = [];
+        try {
+            enrichedSuggestions = await enrichAuthorsWithOpenLibrary(geminiSuggestions);
+        } catch (e) {
+            logger.error('OpenLibrary enrichment error', e);
+        }
+        // Combine top authors with enriched suggestions, avoiding duplicates
+        const allAuthors = [...topAuthors];
+        enrichedSuggestions.forEach(suggestion => {
+            if (!allAuthors.some(a =>
+                (a.key && suggestion.key && a.key === suggestion.key) ||
+                a.name.toLowerCase() === suggestion.name.toLowerCase()
+            )) {
+                allAuthors.push(suggestion);
+            }
+        });
+        await userDocRef.update({ shortlistedAuthors: allAuthors });
+        logger.log(`Shortlisted authors updated for user ${userId}`, { shortlistedAuthors: allAuthors });
+    } catch (error) {
+        logger.error(`Error updating shortlisted authors for user ${userId}`, error);
+    }
+}
