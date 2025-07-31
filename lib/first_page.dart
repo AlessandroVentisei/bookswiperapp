@@ -5,7 +5,8 @@ import 'authentication_page.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 
 class FirstOpen extends StatefulWidget {
-  const FirstOpen({super.key});
+  final Future<void> Function()? onFinished;
+  const FirstOpen({super.key, this.onFinished});
 
   @override
   _FirstOpenState createState() => _FirstOpenState();

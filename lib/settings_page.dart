@@ -75,6 +75,7 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final _auth = FirebaseAuth.instance;
     return Scaffold(
       appBar: AppBar(
         title: Text('Settings', style: appTheme.textTheme.headlineMedium),
@@ -169,6 +170,67 @@ class SettingsPage extends StatelessWidget {
                   );
                   if (confirm == true) {
                     await _deleteAccount(context);
+                  }
+                },
+              ),
+              ListTile(
+                titleAlignment: ListTileTitleAlignment.center,
+                selected: true,
+                style: ListTileStyle.list,
+                selectedColor: appTheme.colorScheme.surface,
+                selectedTileColor: appTheme.colorScheme.surface,
+                splashColor: appTheme.colorScheme.primary.withOpacity(0.3),
+                leading:
+                    Icon(Icons.lock_reset, color: appTheme.colorScheme.primary),
+                title: Text(
+                  'Reset Password',
+                  style: appTheme.textTheme.displaySmall!.copyWith(
+                    color: appTheme.colorScheme.primary,
+                  ),
+                ),
+                onTap: () async {
+                  final user = _auth.currentUser;
+                  if (user == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('No user is currently signed in.')),
+                    );
+                    return;
+                  }
+                  if (user.email == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(
+                              'Apple users must use the Apple ID app to reset their password.')),
+                    );
+                    return;
+                  }
+                  // Check if user signed in with password provider
+                  final methods =
+                      await _auth.fetchSignInMethodsForEmail(user.email!);
+                  if (!methods.contains('password')) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                            'Password reset is only available for accounts registered with email and password.'),
+                      ),
+                    );
+                    return;
+                  }
+                  try {
+                    await _auth.sendPasswordResetEmail(email: user.email!);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(
+                              'Password reset email sent. Please check your inbox.')),
+                    );
+                  } catch (e, stack) {
+                    print(e.toString());
+                    print(stack);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('Failed to send reset email: e}')),
+                    );
                   }
                 },
               ),

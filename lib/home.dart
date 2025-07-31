@@ -50,12 +50,6 @@ class _HomePage extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: 16,
               children: [
-                /*TextField(
-                  decoration: InputDecoration(
-                    icon: Icon(Icons.search),
-                    labelText: 'Authors, Titles, or Subjects',
-                  ),
-                ),*/
                 SizedBox(
                   height: 0,
                 ),
@@ -106,6 +100,8 @@ class _HomePage extends State<HomePage> {
                 ElevatedButton(
                   onPressed: () async {
                     await FirebaseAuth.instance.signOut();
+                    Navigator.of(context)
+                        .pushNamedAndRemoveUntil('/auth', (route) => false);
                   },
                   child: Text('Sign Out'),
                 ),
@@ -139,11 +135,11 @@ Widget favouriteGenres() {
       "Favorite Genres",
       style: appTheme.textTheme.displayMedium,
     ),
-    FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
+    StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
           .collection('users')
           .doc(FirebaseAuth.instance.currentUser!.uid)
-          .get(),
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Padding(
@@ -188,11 +184,11 @@ Widget publishingPeriod() {
         "Favourite Publishing Period",
         style: appTheme.textTheme.displayMedium,
       ),
-      FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
+      StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
             .collection('users')
             .doc(FirebaseAuth.instance.currentUser!.uid)
-            .get(),
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Padding(

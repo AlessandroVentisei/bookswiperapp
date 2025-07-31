@@ -11,7 +11,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import './functions/user_checks.dart';
 import 'splash_screen.dart';
 import 'author_details_page.dart';
-import 'settings_page.dart'; // <-- Import the settings page
+import 'settings_page.dart';
+import 'loading_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 ValueNotifier<User?> userCredential = ValueNotifier(null);
 FirebaseFunctions? firebaseFunctions;
@@ -25,43 +27,74 @@ void main() async {
   // Initialize Firebase Functions and store the instance globally
   firebaseFunctions = FirebaseFunctions.instanceFor(app: app);
 
-  FirebaseAuth.instance.authStateChanges().listen((User? user) {
-    if (user == null) {
-      print('User is currently signed out!');
-      userCredential.value = user;
-    } else {
-      print('User is signed in!');
-      userCredential.value = user;
-      checkIfNewUser(user);
-    }
-  });
-  runApp(MyApp());
+  runApp(AppRoot());
 }
 
-class MyApp extends StatelessWidget {
+// Top-level widget that rebuilds on auth state changes
+class AppRoot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MatchBook',
-      theme: appTheme,
-      home: SplashScreenWrapper(),
-      routes: {
-        '/first': (context) => FirstOpen(),
-        '/auth': (context) => AuthenticationPage(),
-        '/explore': (context) => HomePage(),
-        '/setup': (context) => NewUserSetup(),
-        '/settings': (context) => SettingsPage(), // <-- Added
-        '/authorDetails': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments
-              as Map<String, dynamic>;
-          return AuthorDetailsPage(
-            authorKey: args['authorKey'],
-            authorName: args['authorName'],
-          );
-        },
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // Show splash while waiting for auth state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SplashScreen(onInitializationComplete: () {});
+        }
+        final user = snapshot.data;
+        return MaterialApp(
+          title: 'MatchBook',
+          theme: appTheme,
+          home: _routeForUser(user),
+          routes: {
+            '/first': (context) => FirstOpen(),
+            '/auth': (context) => AuthenticationPage(),
+            '/explore': (context) => HomePage(),
+            '/setup': (context) => NewUserSetup(),
+            '/settings': (context) => SettingsPage(),
+            '/loading': (context) => LoadingPage(),
+            '/authorDetails': (context) {
+              final args = ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
+              return AuthorDetailsPage(
+                authorKey: args['authorKey'],
+                authorName: args['authorName'],
+              );
+            },
+          },
+        );
       },
     );
   }
+}
+
+// Routing logic for user state
+Widget _routeForUser(User? user) {
+  if (user == null) {
+    return AuthenticationPage();
+  }
+  // Use FutureBuilder to check Firestore user doc
+  return FutureBuilder<DocumentSnapshot>(
+    future: FirebaseFirestore.instance.collection("users").doc(user.uid).get(),
+    builder: (context, userDocSnapshot) {
+      final doc = userDocSnapshot.data;
+      if (doc == null || !doc.exists) {
+        return Scaffold(
+          backgroundColor: appTheme.colorScheme.primary,
+          body: Center(
+            child: Text('User data not found. Please try again later.',
+                style: TextStyle(color: Colors.red)),
+          ),
+        );
+      }
+      if (doc['isNewUser'] == true) {
+        print("New user detected, navigating to setup.");
+        return NewUserSetup();
+      }
+      print("Returning HomePage for existing user.");
+      return HomePage();
+    },
+  );
 }
 
 class MyHomePage extends StatefulWidget {

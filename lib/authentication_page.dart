@@ -27,7 +27,9 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
         idToken: googleAuth?.idToken,
       );
 
-      return await FirebaseAuth.instance.signInWithCredential(credential);
+      UserCredential user =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      FirebaseAuth.instance.signInWithCredential(user.credential!);
     } on Exception catch (e) {
       print('exception->$e');
     }
@@ -38,10 +40,115 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
       final AuthProvider appleProvider = AppleAuthProvider();
       UserCredential user =
           await FirebaseAuth.instance.signInWithProvider(appleProvider);
-      return user;
+      FirebaseAuth.instance.signInWithCredential(user.credential!);
     } on Exception catch (e) {
       print('exception->$e');
     }
+  }
+
+  Future<void> _showEmailAuthDialog(BuildContext context) async {
+    final formKey = GlobalKey<FormState>();
+    String email = '';
+    String password = '';
+    bool isLogin = true;
+    String? errorMessage;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              insetPadding: EdgeInsets.symmetric(horizontal: 16.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 400),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          isLogin ? 'Login' : 'Register',
+                          style: appTheme.textTheme.headlineMedium!.copyWith(
+                            color: appTheme.colorScheme.primary,
+                          ),
+                          textAlign: TextAlign.start,
+                        ),
+                        const SizedBox(height: 24),
+                        TextFormField(
+                          style: appTheme.textTheme.headlineSmall!.copyWith(
+                            color: appTheme.colorScheme.primary,
+                          ),
+                          decoration: InputDecoration(labelText: 'Email'),
+                          onChanged: (val) => email = val,
+                          validator: (val) => val != null && val.contains('@')
+                              ? null
+                              : 'Enter a valid email',
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          style: appTheme.textTheme.headlineSmall!.copyWith(
+                            color: appTheme.colorScheme.primary,
+                          ),
+                          decoration: InputDecoration(labelText: 'Password'),
+                          obscureText: true,
+                          onChanged: (val) => password = val,
+                          validator: (val) => val != null && val.length >= 6
+                              ? null
+                              : 'Min 6 characters',
+                        ),
+                        if (errorMessage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(errorMessage!,
+                                style: TextStyle(
+                                    color: appTheme.colorScheme.error)),
+                          ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          spacing: 12,
+                          children: [
+                            TextButton(
+                              onPressed: () async => {
+                                await FirebaseAuth.instance
+                                    .createUserWithEmailAndPassword(
+                                        email: email, password: password)
+                              },
+                              child: Text('Create account'),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                if (formKey.currentState?.validate() != true)
+                                  return;
+                                try {
+                                  if (isLogin) {
+                                    await FirebaseAuth.instance
+                                        .signInWithEmailAndPassword(
+                                            email: email, password: password);
+                                  }
+                                  if (context.mounted)
+                                    Navigator.pop(context, true);
+                                } on FirebaseAuthException catch (e) {
+                                  setState(() => errorMessage = e.message);
+                                }
+                              },
+                              child: Text(isLogin ? 'Login' : 'Register'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget build(BuildContext context) {
@@ -68,19 +175,18 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                 OutlinedButton(
                   onPressed: () async {
                     userCredential.value = await signInWithGoogle();
-                    if (userCredential.value != null && mounted) {
-                      Navigator.popUntil(context, ModalRoute.withName('/'));
-                      print(userCredential.value);
-                    }
+                    setState(() {
+                      print("Google sign in completed");
+                    });
                   },
                   child: Text("Continue with Google"),
                 ),
                 OutlinedButton(
                   onPressed: () async {
                     userCredential.value = await signInWithApple();
-                    if (userCredential.value != null && mounted) {
-                      Navigator.popUntil(context, ModalRoute.withName('/'));
-                    }
+                    setState(() {
+                      print("Apple sign in completed");
+                    });
                   },
                   child: Text("Continue with Apple"),
                 ),
@@ -111,7 +217,7 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                   ],
                 ),
                 OutlinedButton(
-                  onPressed: () => {},
+                  onPressed: () => _showEmailAuthDialog(context),
                   child: Text("Login with email"),
                 ),
               ],

@@ -77,25 +77,25 @@ final ThemeData appTheme = ThemeData(
   ),
   inputDecorationTheme: InputDecorationTheme(
     counterStyle: TextStyle(
-      color: Colors.white,
+      color: primaryColor,
     ),
-    floatingLabelBehavior: FloatingLabelBehavior.never,
+    floatingLabelBehavior: FloatingLabelBehavior.always,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.all(Radius.circular(16)),
       borderSide: BorderSide(
-        color: const Color.fromARGB(100, 255, 255, 255),
+        color: primaryColor.withAlpha(100),
       ),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.all(Radius.circular(16)),
       borderSide: BorderSide(
-        color: const Color.fromARGB(100, 255, 255, 255),
+        color: primaryColor.withAlpha(100),
       ),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.all(Radius.circular(16)),
       borderSide: BorderSide(
-        color: Colors.white,
+        color: primaryColor,
       ),
     ),
     errorBorder: OutlineInputBorder(
@@ -109,13 +109,9 @@ final ThemeData appTheme = ThemeData(
       ),
     ),
     labelStyle: GoogleFonts.sortsMillGoudy(
-        color: const Color.fromARGB(100, 255, 255, 255),
-        fontSize: 20.0,
-        height: 1.0),
+        color: primaryColor, fontSize: 20.0, height: 1.0),
     floatingLabelStyle: GoogleFonts.sortsMillGoudy(
-        color: const Color.fromARGB(100, 255, 255, 255),
-        fontSize: 20.0,
-        height: 1.0),
+        color: primaryColor, fontSize: 20.0, height: 1.0),
     iconColor: const Color.fromARGB(100, 255, 255, 255),
   ),
   outlinedButtonTheme: OutlinedButtonThemeData(

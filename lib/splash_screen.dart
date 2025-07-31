@@ -33,7 +33,7 @@ class _SplashScreenState extends State<SplashScreen> {
               width: 150,
               height: 150,
               child: RiveAnimation.asset(
-                '/Users/Alex/Desktop/FlutterDev/bookswiperapp/lib/assets/loading_book.riv',
+                'lib/assets/loading_book.riv',
                 fit: BoxFit.contain,
                 animations: const ['loading'],
               ),
