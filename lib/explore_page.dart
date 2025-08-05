@@ -43,7 +43,7 @@ class _ExplorePage extends State<ExplorePage> {
     if (_isLoading || !_hasMore) return;
     setState(() => _isLoading = true);
 
-    final prevIndex = cardIndex;
+    var prevIndex = cardIndex;
     final books = await fetchBooks(
       batchSize: _batchSize * 2, // Fetch double the batch size for preloading
       lastDoc: null, // fresh start
@@ -62,7 +62,10 @@ class _ExplorePage extends State<ExplorePage> {
           .collection('books')
           .doc(books.last.docId);
       _lastDoc = await lastDocRef.get();
-
+      // check that index is not out of bounds
+      if (prevIndex >= _books.length - 1) {
+        prevIndex = 0;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _swiperController.moveTo(prevIndex);
       });
@@ -72,6 +75,7 @@ class _ExplorePage extends State<ExplorePage> {
       await firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({
         "userId": FirebaseAuth.instance.currentUser!.uid,
       });
+      _waitForBooksAndReload();
     }
 
     setState(() => _isLoading = false);
@@ -80,7 +84,7 @@ class _ExplorePage extends State<ExplorePage> {
   Future<void> _fetchFirstHalf() async {
     if (_isLoading || !_hasMore) return;
     setState(() => _isLoading = true);
-    final prevIndex = cardIndex;
+    var prevIndex = cardIndex;
     final books = await fetchBooks(
       batchSize: _batchSize,
       lastDoc: _lastDoc,
@@ -88,7 +92,7 @@ class _ExplorePage extends State<ExplorePage> {
     if (books.isNotEmpty) {
       setState(() {
         // replace the ealier range with new books in queue.
-        _books.setRange(0, (books.length / 2).toInt() - 1, books);
+        _books.replaceRange(0, (_books.length ~/ 2), books);
       });
       // Update _lastDoc to the last fetched document snapshot
       final lastDocRef = FirebaseFirestore.instance
@@ -97,6 +101,10 @@ class _ExplorePage extends State<ExplorePage> {
           .collection('books')
           .doc(books.last.docId);
       _lastDoc = await lastDocRef.get();
+      // check that index is not out of bounds
+      if (prevIndex >= _books.length - 1) {
+        prevIndex = 0;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _swiperController.moveTo(prevIndex);
       });
@@ -105,14 +113,16 @@ class _ExplorePage extends State<ExplorePage> {
       await firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({
         "userId": FirebaseAuth.instance.currentUser!.uid,
       });
+      _waitForBooksAndReload();
     }
     setState(() => _isLoading = false);
   }
 
   Future<void> _fetchSecondHalf() async {
+    print("fetching second half of books");
     if (_isLoading || !_hasMore) return;
     setState(() => _isLoading = true);
-    final prevIndex = cardIndex;
+    var prevIndex = cardIndex;
     final books = await fetchBooks(
       batchSize: _batchSize,
       lastDoc: _lastDoc,
@@ -120,8 +130,7 @@ class _ExplorePage extends State<ExplorePage> {
     if (books.isNotEmpty) {
       setState(() {
         // replace the ealier range with new books in queue.
-        _books.setRange(
-            (books.length / 2).toInt() - 1, books.length - 1, books);
+        _books.replaceRange(_books.length ~/ 2, _books.length, books);
       });
       // Update _lastDoc to the last fetched document snapshot
       final lastDocRef = FirebaseFirestore.instance
@@ -130,6 +139,10 @@ class _ExplorePage extends State<ExplorePage> {
           .collection('books')
           .doc(books.last.docId);
       _lastDoc = await lastDocRef.get();
+      // check that index is not out of bounds
+      if (prevIndex >= _books.length - 1) {
+        prevIndex = 0;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _swiperController.moveTo(prevIndex);
       });
@@ -138,6 +151,7 @@ class _ExplorePage extends State<ExplorePage> {
       await firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({
         "userId": FirebaseAuth.instance.currentUser!.uid,
       });
+      _waitForBooksAndReload();
     }
     setState(() => _isLoading = false);
   }
@@ -147,12 +161,36 @@ class _ExplorePage extends State<ExplorePage> {
     super.dispose();
   }
 
+  Future<void> _waitForBooksAndReload() async {
+    final user = FirebaseAuth.instance.currentUser!;
+    final userBooksRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('books');
+
+    // Checking every 2 seconds for a max of 90 seconds
+    for (int i = 0; i < 45; i++) {
+      final snapshot = await userBooksRef.limit(1).get();
+      if (snapshot.docs.isNotEmpty) {
+        print("Books are now available!");
+        setState(() {
+          _hasMore = true;
+        });
+        await _fetchInitBatch();
+        return;
+      }
+      await Future.delayed(Duration(seconds: 2));
+    }
+
+    print("Still no books after waiting.");
+  }
+
   @override
   Widget build(BuildContext context) {
     void _onCardChanged(int newIndex) {
       cardIndex = newIndex;
       // Rolling pre-loading system.
-      if (cardIndex == _batchSize / 2 && _hasMore && !_isLoading) {
+      if (cardIndex == (_batchSize ~/ 2) + 1 && _hasMore && !_isLoading) {
         _fetchFirstHalf();
       }
       if (cardIndex == 0 && _hasMore && !_isLoading) {
@@ -160,7 +198,7 @@ class _ExplorePage extends State<ExplorePage> {
       }
     }
 
-    if (_books.isEmpty || _isLoading) {
+    if (_books.isEmpty && _isLoading) {
       return Scaffold(
         appBar: AppBar(
           scrolledUnderElevation: 10,
@@ -188,7 +226,7 @@ class _ExplorePage extends State<ExplorePage> {
                     width: 150,
                     height: 150,
                     child: RiveAnimation.asset(
-                      '/Users/Alex/Desktop/FlutterDev/bookswiperapp/lib/assets/loading_book.riv',
+                      'lib/assets/loading_book.riv',
                       fit: BoxFit.contain,
                       alignment: Alignment.center,
                       animations: const ['loading'],
@@ -314,18 +352,10 @@ class _ExplorePage extends State<ExplorePage> {
         ),
       ),
       backgroundColor: appTheme.colorScheme.primary,
-      body: _books.isEmpty
+      body: (_books.isEmpty || _books.length < 2)
           ? Center(child: Text('No books available.'))
           : CardSwiper(
               isLoop: true,
-              onEnd: () => {
-                if (!_hasMore && _isLoading)
-                  {
-                    setState(() {
-                      _isLoading = true;
-                    }),
-                  }
-              },
               controller: _swiperController,
               cardsCount: _books.length,
               numberOfCardsDisplayed: 2,

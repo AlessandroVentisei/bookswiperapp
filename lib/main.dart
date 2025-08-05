@@ -15,7 +15,6 @@ import 'settings_page.dart';
 import 'loading_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-ValueNotifier<User?> userCredential = ValueNotifier(null);
 FirebaseFunctions? firebaseFunctions;
 
 void main() async {
@@ -30,143 +29,63 @@ void main() async {
   runApp(AppRoot());
 }
 
-// Top-level widget that rebuilds on auth state changes
 class AppRoot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        // Show splash while waiting for auth state
-        if (snapshot.connectionState == ConnectionState.waiting) {
+      builder: (context, authSnapshot) {
+        if (authSnapshot.connectionState == ConnectionState.waiting) {
           return SplashScreen(onInitializationComplete: () {});
         }
-        final user = snapshot.data;
+
+        final user = authSnapshot.data;
+        print("User: ${user?.uid}");
         return MaterialApp(
           title: 'MatchBook',
           theme: appTheme,
-          home: _routeForUser(user),
-          routes: {
-            '/first': (context) => FirstOpen(),
-            '/auth': (context) => AuthenticationPage(),
-            '/explore': (context) => HomePage(),
-            '/setup': (context) => NewUserSetup(),
-            '/settings': (context) => SettingsPage(),
-            '/loading': (context) => LoadingPage(),
-            '/authorDetails': (context) {
-              final args = ModalRoute.of(context)!.settings.arguments
-                  as Map<String, dynamic>;
-              return AuthorDetailsPage(
-                authorKey: args['authorKey'],
-                authorName: args['authorName'],
-              );
-            },
-          },
+          home: user == null
+              ? AuthenticationPage()
+              : FutureBuilder<DocumentSnapshot>(
+                  future: _ensureUserDoc(user),
+                  builder: (context, userDocSnapshot) {
+                    if (userDocSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return LoadingPage();
+                    }
+                    if (userDocSnapshot.hasError) {
+                      return Scaffold(
+                        backgroundColor: appTheme.colorScheme.primary,
+                        body: Center(
+                          child: Text(
+                            'Error loading user data.',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      );
+                    }
+                    final doc = userDocSnapshot.data;
+                    if (doc == null || !doc.exists) {
+                      return Scaffold(
+                        backgroundColor: appTheme.colorScheme.primary,
+                        body: Center(
+                          child: Text(
+                            'User data not found. Please try again later.',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      );
+                    }
+                    if (doc['isNewUser'] == true) {
+                      print("New user detected, navigating to setup.");
+                      return NewUserSetup();
+                    }
+                    print("Returning HomePage for existing user.");
+                    return HomePage();
+                  },
+                ),
         );
       },
-    );
-  }
-}
-
-// Routing logic for user state
-Widget _routeForUser(User? user) {
-  if (user == null) {
-    return AuthenticationPage();
-  }
-  // Use FutureBuilder to check Firestore user doc
-  return FutureBuilder<DocumentSnapshot>(
-    future: FirebaseFirestore.instance.collection("users").doc(user.uid).get(),
-    builder: (context, userDocSnapshot) {
-      final doc = userDocSnapshot.data;
-      if (doc == null || !doc.exists) {
-        return Scaffold(
-          backgroundColor: appTheme.colorScheme.primary,
-          body: Center(
-            child: Text('User data not found. Please try again later.',
-                style: TextStyle(color: Colors.red)),
-          ),
-        );
-      }
-      if (doc['isNewUser'] == true) {
-        print("New user detected, navigating to setup.");
-        return NewUserSetup();
-      }
-      print("Returning HomePage for existing user.");
-      return HomePage();
-    },
-  );
-}
-
-class MyHomePage extends StatefulWidget {
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: appTheme.colorScheme.primary,
-      appBar: AppBar(),
-      body: ValueListenableBuilder(
-        valueListenable: userCredential,
-        builder: (context, value, child) {
-          return (userCredential.value == '' || userCredential.value == null)
-              ? Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 160, 18, 78),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          RichText(
-                            text: TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: 'Read What You ',
-                                  style: appTheme.textTheme.headlineLarge,
-                                ),
-                                TextSpan(
-                                  text: 'Love',
-                                  style: appTheme.textTheme.headlineLarge
-                                      ?.copyWith(
-                                    color: appTheme.colorScheme
-                                        .secondary, // Change this to your desired color
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                              'Explore famous works of literature, from modern classics to ancient texts, with just a simple swipe.',
-                              style: appTheme.textTheme.bodyLarge),
-                        ],
-                      ),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: Icon(Icons.arrow_forward),
-                          iconAlignment: IconAlignment.end,
-                          label: Text('Get started'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: appTheme.colorScheme.secondary,
-                            foregroundColor: appTheme.colorScheme.onSecondary,
-                            textStyle: appTheme.textTheme.bodyMedium,
-                          ),
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/first');
-                          },
-                        ),
-                      )
-                    ],
-                  ),
-                )
-              : HomePage();
-        },
-      ),
     );
   }
 }
@@ -180,10 +99,10 @@ class _SplashScreenWrapperState extends State<SplashScreenWrapper> {
   bool _initialized = false;
 
   void _onInitializationComplete() {
-    // Use a fade transition to MyHomePage
+    // Use a fade transition to AppRoot
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => MyHomePage(),
+        pageBuilder: (context, animation, secondaryAnimation) => AppRoot(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
@@ -200,7 +119,17 @@ class _SplashScreenWrapperState extends State<SplashScreenWrapper> {
     if (!_initialized) {
       return SplashScreen(onInitializationComplete: _onInitializationComplete);
     }
-    // This branch is no longer needed, but kept for safety
-    return MyHomePage();
+    return AppRoot();
   }
+}
+
+// Ensures user doc exists, runs setupNewUser if not, and returns the doc
+Future<DocumentSnapshot> _ensureUserDoc(User user) async {
+  final docRef = FirebaseFirestore.instance.collection("users").doc(user.uid);
+  final doc = await docRef.get();
+  if (!doc.exists) {
+    await setupNewUser(user);
+    return await docRef.get();
+  }
+  return doc;
 }

@@ -53,7 +53,7 @@ exports.likeBook = onCall(async (request, response) => {
 
         // Count liked books and update shortlist every 10 likes
         const likedBooksCount = (await likedBooksRef.get()).size;
-        if (likedBooksCount % 10 === 0) {
+        if (likedBooksCount % 10 == 0) {
             await updateShortlistedAuthorsForUser(user);
         }
         return { message: "Book moved to likedBooks successfully." };

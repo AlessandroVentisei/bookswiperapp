@@ -1,3 +1,4 @@
+import 'package:bookswiperapp/functions/user_checks.dart';
 import 'package:bookswiperapp/theme/theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -26,9 +27,9 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
         accessToken: googleAuth?.accessToken,
         idToken: googleAuth?.idToken,
       );
-
       UserCredential user =
           await FirebaseAuth.instance.signInWithCredential(credential);
+      await setupNewUser(user.user!);
       FirebaseAuth.instance.signInWithCredential(user.credential!);
     } on Exception catch (e) {
       print('exception->$e');
@@ -40,6 +41,7 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
       final AuthProvider appleProvider = AppleAuthProvider();
       UserCredential user =
           await FirebaseAuth.instance.signInWithProvider(appleProvider);
+      await setupNewUser(user.user!);
       FirebaseAuth.instance.signInWithCredential(user.credential!);
     } on Exception catch (e) {
       print('exception->$e');
@@ -113,9 +115,13 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                           children: [
                             TextButton(
                               onPressed: () async => {
-                                await FirebaseAuth.instance
+                                // create the user and setup a new user document
+                                FirebaseAuth.instance
                                     .createUserWithEmailAndPassword(
                                         email: email, password: password)
+                                    .then((user) async {
+                                  await setupNewUser(user.user!);
+                                }),
                               },
                               child: Text('Create account'),
                             ),
@@ -125,9 +131,12 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                                   return;
                                 try {
                                   if (isLogin) {
-                                    await FirebaseAuth.instance
-                                        .signInWithEmailAndPassword(
-                                            email: email, password: password);
+                                    FirebaseAuth.instance
+                                        .createUserWithEmailAndPassword(
+                                            email: email, password: password)
+                                        .then((user) async {
+                                      await setupNewUser(user.user!);
+                                    });
                                   }
                                   if (context.mounted)
                                     Navigator.pop(context, true);

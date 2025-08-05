@@ -1,3 +1,4 @@
+import 'package:bookswiperapp/authentication_page.dart';
 import 'package:bookswiperapp/explore_page.dart';
 import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:bookswiperapp/main.dart';
@@ -36,7 +37,10 @@ class _HomePage extends State<HomePage> {
             IconButton(
               icon: Icon(Icons.settings),
               onPressed: () {
-                Navigator.pushNamed(context, '/settings');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => SettingsPage()),
+                );
               },
             ),
           ],
@@ -100,8 +104,8 @@ class _HomePage extends State<HomePage> {
                 ElevatedButton(
                   onPressed: () async {
                     await FirebaseAuth.instance.signOut();
-                    Navigator.of(context)
-                        .pushNamedAndRemoveUntil('/auth', (route) => false);
+                    Navigator.of(context).pushReplacement(MaterialPageRoute(
+                        builder: (context) => AuthenticationPage()));
                   },
                   child: Text('Sign Out'),
                 ),

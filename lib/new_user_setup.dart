@@ -64,7 +64,10 @@ class _NewUserSetupState extends State<NewUserSetup> {
         "userId": FirebaseAuth.instance.currentUser!.uid,
       });
     }
-    Navigator.pushNamedAndRemoveUntil(context, "/loading", (route) => false);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => LoadingPage()),
+    );
   }
 
   @override
