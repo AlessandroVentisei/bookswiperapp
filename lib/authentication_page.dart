@@ -27,10 +27,12 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
         accessToken: googleAuth?.accessToken,
         idToken: googleAuth?.idToken,
       );
-      UserCredential user =
-          await FirebaseAuth.instance.signInWithCredential(credential);
-      await setupNewUser(user.user!);
-      FirebaseAuth.instance.signInWithCredential(user.credential!);
+      UserCredential user = await FirebaseAuth.instance.signInWithCredential(credential);
+      // if user logs in for the first time, setup a new user document
+      if (user.additionalUserInfo?.isNewUser ?? false) {
+        await setupNewUser(user.user!);
+        await FirebaseAuth.instance.signInWithCredential(user.credential!);
+      }
     } on Exception catch (e) {
       print('exception->$e');
     }
@@ -39,20 +41,21 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
   Future<dynamic> signInWithApple() async {
     try {
       final AuthProvider appleProvider = AppleAuthProvider();
-      UserCredential user =
-          await FirebaseAuth.instance.signInWithProvider(appleProvider);
-      await setupNewUser(user.user!);
-      FirebaseAuth.instance.signInWithCredential(user.credential!);
+      UserCredential user = await FirebaseAuth.instance.signInWithProvider(appleProvider);
+      // if user logs in for the first time, setup a new user document
+      if (user.additionalUserInfo?.isNewUser ?? false) {
+        await setupNewUser(user.user!);
+        await FirebaseAuth.instance.signInWithCredential(user.credential!);
+      }
     } on Exception catch (e) {
       print('exception->$e');
     }
   }
 
-  Future<void> _showEmailAuthDialog(BuildContext context) async {
+  Future<dynamic> _showEmailAuthDialog(BuildContext context) async {
     final formKey = GlobalKey<FormState>();
     String email = '';
     String password = '';
-    bool isLogin = true;
     String? errorMessage;
     await showDialog(
       context: context,
@@ -72,7 +75,7 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          isLogin ? 'Login' : 'Register',
+                          'Login',
                           style: appTheme.textTheme.headlineMedium!.copyWith(
                             color: appTheme.colorScheme.primary,
                           ),
@@ -114,37 +117,37 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                           spacing: 12,
                           children: [
                             TextButton(
-                              onPressed: () async => {
-                                // create the user and setup a new user document
-                                FirebaseAuth.instance
-                                    .createUserWithEmailAndPassword(
-                                        email: email, password: password)
-                                    .then((user) async {
+                              onPressed: () async {
+                                try {
+                                  UserCredential user = await FirebaseAuth.instance
+                                      .createUserWithEmailAndPassword(email: email, password: password);
                                   await setupNewUser(user.user!);
-                                }),
+                                  await FirebaseAuth.instance
+                                        .signInWithEmailAndPassword(email: email, password: password);
+                                  setState(() => errorMessage = null);
+                                  Navigator.of(context).pop();
+                                } on FirebaseAuthException catch (e) {
+                                  setState(() => errorMessage = e.message);
+                                }
                               },
                               child: Text('Create account'),
                             ),
                             TextButton(
                               onPressed: () async {
-                                if (formKey.currentState?.validate() != true)
+                                if (formKey.currentState?.validate() != true) {
                                   return;
+                                }
                                 try {
-                                  if (isLogin) {
-                                    FirebaseAuth.instance
-                                        .createUserWithEmailAndPassword(
-                                            email: email, password: password)
-                                        .then((user) async {
-                                      await setupNewUser(user.user!);
-                                    });
-                                  }
-                                  if (context.mounted)
-                                    Navigator.pop(context, true);
+                                  await FirebaseAuth.instance
+                                        .signInWithEmailAndPassword(email: email, password: password);
+                                  setState(() => errorMessage = null);
+                                  Navigator.of(context).pop();
+
                                 } on FirebaseAuthException catch (e) {
                                   setState(() => errorMessage = e.message);
                                 }
                               },
-                              child: Text(isLogin ? 'Login' : 'Register'),
+                              child: Text('Login'),
                             ),
                           ],
                         ),
