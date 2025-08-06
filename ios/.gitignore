@@ -11,14 +11,14 @@
 **/DerivedData/
 Icon?
 **/Pods/
-**/.symlinks/
+!**/.symlinks/
+!**/Flutter/Generated.xcconfig
 profile
 xcuserdata
-**/.generated/
+!**/.generated/
 Flutter/App.framework
 Flutter/Flutter.framework
 Flutter/Flutter.podspec
-Flutter/Generated.xcconfig
 Flutter/ephemeral/
 Flutter/app.flx
 Flutter/app.zip
