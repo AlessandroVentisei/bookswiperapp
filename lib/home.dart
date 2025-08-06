@@ -104,8 +104,6 @@ class _HomePage extends State<HomePage> {
                 ElevatedButton(
                   onPressed: () async {
                     await FirebaseAuth.instance.signOut();
-                    Navigator.of(context).pushReplacement(MaterialPageRoute(
-                        builder: (context) => AuthenticationPage()));
                   },
                   child: Text('Sign Out'),
                 ),

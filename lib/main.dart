@@ -43,7 +43,6 @@ class AppRoot extends StatelessWidget {
         }
 
         final user = authSnapshot.data;
-        print("User: ${user?.uid}");
         return MaterialApp(
           title: 'MatchBook',
           theme: appTheme,
@@ -54,7 +53,10 @@ class AppRoot extends StatelessWidget {
                   builder: (context, userDocSnapshot) {
                     if (userDocSnapshot.connectionState ==
                         ConnectionState.waiting) {
-                      return LoadingPage();
+                      print("Waiting for user document snapshot...");
+                      return SplashScreen(
+                        onInitializationComplete: () {},
+                      );
                     }
                     if (userDocSnapshot.hasError) {
                       return Scaffold(
