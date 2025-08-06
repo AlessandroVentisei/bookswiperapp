@@ -103,7 +103,12 @@ class _HomePage extends State<HomePage> {
                 publishingPeriod(),
                 ElevatedButton(
                   onPressed: () async {
-                    await FirebaseAuth.instance.signOut();
+                    try {
+                      await FirebaseAuth.instance.signOut();
+                    }
+                    catch (e) {
+                      print("Error signing out: $e");
+                    }
                   },
                   child: Text('Sign Out'),
                 ),

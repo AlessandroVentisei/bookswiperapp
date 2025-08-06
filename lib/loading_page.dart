@@ -69,10 +69,10 @@ class _LoadingPageState extends State<LoadingPage> {
               .collection('users')
               .doc(user.uid)
               .update({'isNewUser': false});
-          if (mounted) {
-            Navigator.push(
-                context, MaterialPageRoute(builder: (context) => HomePage()));
-          }
+          // if (mounted) {
+          //   Navigator.push(
+          //       context, MaterialPageRoute(builder: (context) => HomePage()));
+          // }
           break;
         }
       }

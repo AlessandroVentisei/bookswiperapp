@@ -14,7 +14,6 @@ class AuthenticationPage extends StatefulWidget {
 
 class _AuthenticationPageState extends State<AuthenticationPage> {
   @override
-  ValueNotifier userCredential = ValueNotifier('');
 
   Future<dynamic> signInWithGoogle() async {
     try {
@@ -31,7 +30,6 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
       // if user logs in for the first time, setup a new user document
       if (user.additionalUserInfo?.isNewUser ?? false) {
         await setupNewUser(user.user!);
-        await FirebaseAuth.instance.signInWithCredential(user.credential!);
       }
     } on Exception catch (e) {
       print('exception->$e');
@@ -45,7 +43,6 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
       // if user logs in for the first time, setup a new user document
       if (user.additionalUserInfo?.isNewUser ?? false) {
         await setupNewUser(user.user!);
-        await FirebaseAuth.instance.signInWithCredential(user.credential!);
       }
     } on Exception catch (e) {
       print('exception->$e');
@@ -186,7 +183,7 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
               children: [
                 OutlinedButton(
                   onPressed: () async {
-                    userCredential.value = await signInWithGoogle();
+                    await signInWithGoogle();
                     setState(() {
                       print("Google sign in completed");
                     });
@@ -195,7 +192,7 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                 ),
                 OutlinedButton(
                   onPressed: () async {
-                    userCredential.value = await signInWithApple();
+                    await signInWithApple();
                     setState(() {
                       print("Apple sign in completed");
                     });
@@ -229,7 +226,12 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
                   ],
                 ),
                 OutlinedButton(
-                  onPressed: () => _showEmailAuthDialog(context),
+                  onPressed: () async {
+                    await _showEmailAuthDialog(context);
+                    setState(() {
+                      print("Email sign in completed");
+                    });
+                  },
                   child: Text("Login with email"),
                 ),
               ],
