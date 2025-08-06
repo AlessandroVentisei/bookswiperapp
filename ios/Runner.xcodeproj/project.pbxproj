@@ -197,6 +197,7 @@
 			buildPhases = (
 				2CEA7DE0363A9CC3F824B9F9 /* [CP] Check Pods Manifest.lock */,
 				9740EEB61CF901F6004384FC /* Run Script */,
+				FA14CB152E4375D500BC8AC7 /* ShellScript */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
@@ -358,14 +359,35 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		FA14CB152E4375D500BC8AC7 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "#!/bin/sh\n\nset -e\n\n# Add Flutter to PATH\nexport PATH=\"$PATH\":\"$HOME/.flutter/bin\"\n\n# Install Flutter if not present\nif which flutter >/dev/null; then\n  echo \"Flutter found!\"\nelse\n  echo \"Installing Flutter...\"\n  git clone https://github.com/flutter/flutter.git ~/.flutter\n  flutter doctor\nfi\n\n# Navigate to project root\ncd ..\n\n# Clean project\nflutter clean\n\n# Install Flutter dependencies\nflutter pub get\n\n# Navigate to ios folder and install CocoaPods\ncd ios\npod install\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
