@@ -62,17 +62,17 @@ class _LoadingPageState extends State<LoadingPage> {
       await for (var snapshot in booksRef.snapshots()) {
         print("books in snapshot: ${snapshot.docs.length}");
         // Check if there are any books in the user's collection
-        // If there are, navigate to HomePage
+        // If there are, set the 'isFetchingBooks' flag to false
         // If not, continue waiting for books to be added
         if (snapshot.docs.isNotEmpty) {
           FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
-              .update({'isNewUser': false});
-          // if (mounted) {
-          //   Navigator.push(
-          //       context, MaterialPageRoute(builder: (context) => HomePage()));
-          // }
+              .update({'isFetchingBooks': false});
+        // this update will force a rebuild to update the UI
+        // Note this would be better updated in the function that fetches books
+        // but this is a quick fix to ensure the UI updates see new issue
+        // for future improvements (pv) - then -waitForBooks will not be needed
           break;
         }
       }

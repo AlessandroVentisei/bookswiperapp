@@ -54,48 +54,26 @@ class AppRoot extends StatelessWidget {
         final user = authSnapshot.data;
         print("User: ${user?.uid}");
         return user == null
-          ? AuthenticationPage()
-          : FutureBuilder<DocumentSnapshot>(
-              future: _ensureUserDoc(user),
-              builder: (context, userDocSnapshot) {
-                if (userDocSnapshot.connectionState ==
-                    ConnectionState.waiting) {
-                  return LoadingPage();
-                }
-                if (userDocSnapshot.hasError) {
-                  return Scaffold(
-                    backgroundColor: appTheme.colorScheme.primary,
-                    body: Center(
-                      child: Text(
-                        'Error loading user data.',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  );
-                }
-                final doc = userDocSnapshot.data;
-                if (doc == null || !doc.exists) {
-                  return Scaffold(
-                    backgroundColor: appTheme.colorScheme.primary,
-                    body: Center(
-                      child: Text(
-                        'User data not found. Please try again later.',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  );
-                }
-                if (doc['isNewUser'] == true) {
-                  print("New user detected, navigating to setup.");
-                  return NewUserSetup();
-                }
-                print("Returning HomePage for existing user.");
-                return HomePage();
-              },
-            );
-          },
-        );
-      }
+            ? AuthenticationPage()
+            : StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+                builder: (context, userDocSnapshot) {
+                  if (!userDocSnapshot.hasData) {
+                    return LoadingPage();
+                  }
+                  final userData = userDocSnapshot.data!.data() as Map<String, dynamic>;
+                  if (userData['isNewUser'] == true) {
+                    return NewUserSetup();
+                  }
+                  if (userData['isFetchingBooks'] == true) {
+                    return LoadingPage();
+                  }
+                  return HomePage();
+                },
+              );
+      },
+    );
+  }
 }
 
 class SplashScreenWrapper extends StatefulWidget {
