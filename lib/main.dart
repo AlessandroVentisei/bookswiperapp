@@ -36,7 +36,10 @@ class AppRoot extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, authSnapshot) {
         if (authSnapshot.connectionState == ConnectionState.waiting) {
-          return SplashScreen(onInitializationComplete: () {});
+          return MaterialApp(
+            theme: appTheme,
+            home: SplashScreen(onInitializationComplete: () {}),
+          );
         }
 
         final user = authSnapshot.data;

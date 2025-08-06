@@ -76,67 +76,69 @@ class _NewUserSetupState extends State<NewUserSetup> {
       appBar: AppBar(
         title: Text('Welcome', style: appTheme.textTheme.headlineMedium),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 18.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Column(
-              spacing: 12,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pick your favourite genres (up to 5):',
-                  style: appTheme.textTheme.headlineMedium!.copyWith(
-                    color: appTheme.colorScheme.primary,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 18.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Column(
+                spacing: 12,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pick your favourite genres (up to 5):',
+                    style: appTheme.textTheme.headlineMedium!.copyWith(
+                      color: appTheme.colorScheme.primary,
+                    ),
                   ),
-                ),
-                Text(
-                  'This will help us initial books to recommend.',
-                  style: appTheme.textTheme.bodyMedium!.copyWith(
-                    color: appTheme.colorScheme.primary,
+                  Text(
+                    'This will help us initial books to recommend.',
+                    style: appTheme.textTheme.bodyMedium!.copyWith(
+                      color: appTheme.colorScheme.primary,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: 64),
-            Wrap(
-              spacing: 8,
-              runSpacing: 0,
-              children: genres.map((genre) {
-                final selected = selectedGenres.contains(genre);
-                return ChoiceChip(
-                  label: Text(genre),
-                  selected: selected,
-                  checkmarkColor: appTheme.colorScheme.onPrimary,
-                  onSelected: (_) => _onGenreTap(genre),
-                  selectedColor: appTheme.colorScheme.primary,
-                  labelStyle: TextStyle(
-                    color: selected
-                        ? appTheme.colorScheme.onPrimary
-                        : appTheme.colorScheme.primary,
-                  ),
-                );
-              }).toList(),
-            ),
-            Spacer(),
-            ElevatedButton(
-              onPressed: selectedGenres.length >= 2 ? _onNext : null,
-              child: Text('Next'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: selectedGenres.length >= 2
-                    ? appTheme.colorScheme.primary
-                    : Colors.grey,
-                foregroundColor: selectedGenres.length >= 2
-                    ? appTheme.colorScheme.onPrimary
-                    : Colors.white,
-                disabledBackgroundColor: Colors.grey,
-                disabledForegroundColor: Colors.white,
+                ],
               ),
-            ),
-            SizedBox(height: 32),
-          ],
+              SizedBox(height: 64),
+              Wrap(
+                spacing: 8,
+                runSpacing: 0,
+                children: genres.map((genre) {
+                  final selected = selectedGenres.contains(genre);
+                  return ChoiceChip(
+                    label: Text(genre),
+                    selected: selected,
+                    checkmarkColor: appTheme.colorScheme.onPrimary,
+                    onSelected: (_) => _onGenreTap(genre),
+                    selectedColor: appTheme.colorScheme.primary,
+                    labelStyle: TextStyle(
+                      color: selected
+                          ? appTheme.colorScheme.onPrimary
+                          : appTheme.colorScheme.primary,
+                    ),
+                  );
+                }).toList(),
+              ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: selectedGenres.length >= 2 ? _onNext : null,
+                child: Text('Next'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: selectedGenres.length >= 2
+                      ? appTheme.colorScheme.primary
+                      : Colors.grey,
+                  foregroundColor: selectedGenres.length >= 2
+                      ? appTheme.colorScheme.onPrimary
+                      : Colors.white,
+                  disabledBackgroundColor: Colors.grey,
+                  disabledForegroundColor: Colors.white,
+                ),
+              ),
+              SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
