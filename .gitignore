@@ -50,18 +50,20 @@
 **/ios/**/DerivedData/
 **/ios/**/Icon?
 **/ios/**/Pods/
-**/ios/**/.symlinks/
 **/ios/**/profile
 **/ios/**/xcuserdata
-**/ios/.generated/
 **/ios/Flutter/App.framework
 **/ios/Flutter/Flutter.framework
-**/ios/Flutter/Generated.xcconfig
 **/ios/Flutter/app.flx
 **/ios/Flutter/app.zip
 **/ios/Flutter/flutter_assets/
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
+
+# Allow files necessary for Xcode Cloud
+!ios/Flutter/Generated.xcconfig
+!ios/.generated/
+!ios/.symlinks/
 
 # Exceptions to above rules.
 !**/ios/**/default.mode1v3
