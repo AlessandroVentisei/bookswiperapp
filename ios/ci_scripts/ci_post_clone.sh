@@ -1,48 +1,26 @@
-#!/bin/bash
+#!/bin/sh
 
-# Navigate to the Flutter project directory
-cd "$CI_PRIMARY_REPOSITORY_PATH"
+# Fail this script if any subcommand fails.
+set -e
 
-# Install Flutter (if not already available in the environment)
-if ! command -v flutter &> /dev/null
-then
-    echo "Flutter is not installed. Installing Flutter SDK..."
-    git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
-    export PATH="$PATH:$HOME/flutter/bin"
-else
-    echo "Flutter is already installed."
-fi
+# The default execution directory of this script is the ci_scripts directory.
+cd $CI_PRIMARY_REPOSITORY_PATH # change working directory to the root of your cloned repo.
 
-# Verify Flutter installation
-flutter --version
+# Install Flutter using git.
+git clone https://github.com/flutter/flutter.git --depth 1 -b stable $HOME/flutter
+export PATH="$PATH:$HOME/flutter/bin"
 
-# Install dependencies
-echo "Running Flutter pub get..."
 # Install Flutter artifacts for iOS (--ios), or macOS (--macos) platforms.
 flutter precache --ios
 
+# Install Flutter dependencies.
 flutter pub get
 
-echo "Installing cocoapods..."
 # Install CocoaPods using Homebrew.
 HOMEBREW_NO_AUTO_UPDATE=1 # disable homebrew's automatic updates.
 brew install cocoapods
 
-# Set up CocoaPods for iOS
-echo "Running pod install for iOS..."
-cd ios
-pod install --repo-update
+# Install CocoaPods dependencies.
+cd ios && pod install # run `pod install` in the `ios` directory.
 
-# Go back to the workspace root
-cd "$CI_PRIMARY_REPOSITORY_PATH"
-
-echo "Flutter Build running..."
-flutter pub run build_runner build --delete-conflicting-outputs
-flutter build ios --no-codesign -t lib/main.dart
-
-//  ci_post_clone.sh
-//  Runner
-//
-//  Created by Alex Ventisei on 06/08/2025.
-//
-
+exit 0
