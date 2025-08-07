@@ -35,7 +35,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'MatchBook',
       theme: appTheme,
-      home: AppRoot(), // AppRoot handles auth logic and returns the correct page
+      home:
+          AppRoot(), // AppRoot handles auth logic and returns the correct page
     );
   }
 }
@@ -56,12 +57,16 @@ class AppRoot extends StatelessWidget {
         return user == null
             ? AuthenticationPage()
             : StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .snapshots(),
                 builder: (context, userDocSnapshot) {
                   if (!userDocSnapshot.hasData) {
-                    return LoadingPage();
+                    return SplashScreen(onInitializationComplete: () {});
                   }
-                  final userData = userDocSnapshot.data!.data() as Map<String, dynamic>;
+                  final userData =
+                      userDocSnapshot.data!.data() as Map<String, dynamic>;
                   if (userData['isNewUser'] == true) {
                     return NewUserSetup();
                   }
