@@ -364,8 +364,8 @@ class _ExplorePage extends State<ExplorePage> {
               scale: 1.0,
               onSwipe: (previousIndex, currentIndex, direction) {
                 print(
-                    'onSwipe called: previousIndex=$previousIndex, direction=$direction');
-
+                    'onSwipe called: previousIndex=$previousIndex, current index =$currentIndex, direction=$direction');
+                _books[previousIndex].wasSwiped = true;
                 if (currentIndex != null) {
                   _onCardChanged(currentIndex);
                 }

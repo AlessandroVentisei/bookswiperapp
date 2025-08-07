@@ -10,16 +10,17 @@ import 'package:http/http.dart' as http;
 class Book {
   final Map<String, dynamic> data;
   final String docId;
+  bool? wasSwiped;
 
-  Book({required this.data, required this.docId});
+  Book({required this.data, required this.docId, this.wasSwiped});
 
   factory Book.fromFirestore(Map<String, dynamic> data, String docId) {
-    return Book(data: data, docId: docId);
+    return Book(data: data, docId: docId, wasSwiped: false);
   }
 
   // Create a Book from a Map (e.g., from JSON or Firestore)
   factory Book.fromMap(Map<String, dynamic> map, {required String docId}) {
-    return Book(data: map, docId: docId);
+    return Book(data: map, docId: docId, wasSwiped: false);
   }
 
   Map<String, dynamic> toFirestore() => data;
