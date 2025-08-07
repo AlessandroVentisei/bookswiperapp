@@ -58,6 +58,8 @@ class _NewUserSetupState extends State<NewUserSetup> {
           .update({
         'subjectKeywords':
             selectedGenres.toList(), // Set keywords to selected genres
+        'isFetchingBooks': true, // Indicate that books are being fetched
+        'isNewUser': false, // Mark user as no longer new
       });
       // Trigger fetching of books here.
       firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({

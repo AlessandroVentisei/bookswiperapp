@@ -26,7 +26,19 @@ void main() async {
   // Initialize Firebase Functions and store the instance globally
   firebaseFunctions = FirebaseFunctions.instanceFor(app: app);
 
-  runApp(AppRoot());
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'MatchBook',
+      theme: appTheme,
+      home:
+          AppRoot(), // AppRoot handles auth logic and returns the correct page
+    );
+  }
 }
 
 class AppRoot extends StatelessWidget {
@@ -35,61 +47,35 @@ class AppRoot extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, authSnapshot) {
+        print(authSnapshot.connectionState);
         if (authSnapshot.connectionState == ConnectionState.waiting) {
-          return MaterialApp(
-            theme: appTheme,
-            home: SplashScreen(onInitializationComplete: () {}),
-          );
+          return SplashScreen(onInitializationComplete: () {});
         }
 
         final user = authSnapshot.data;
-        return MaterialApp(
-          title: 'MatchBook',
-          theme: appTheme,
-          home: user == null
-              ? AuthenticationPage()
-              : FutureBuilder<DocumentSnapshot>(
-                  future: _ensureUserDoc(user),
-                  builder: (context, userDocSnapshot) {
-                    if (userDocSnapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      print("Waiting for user document snapshot...");
-                      return SplashScreen(
-                        onInitializationComplete: () {},
-                      );
-                    }
-                    if (userDocSnapshot.hasError) {
-                      return Scaffold(
-                        backgroundColor: appTheme.colorScheme.primary,
-                        body: Center(
-                          child: Text(
-                            'Error loading user data.',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      );
-                    }
-                    final doc = userDocSnapshot.data;
-                    if (doc == null || !doc.exists) {
-                      return Scaffold(
-                        backgroundColor: appTheme.colorScheme.primary,
-                        body: Center(
-                          child: Text(
-                            'User data not found. Please try again later.',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      );
-                    }
-                    if (doc['isNewUser'] == true) {
-                      print("New user detected, navigating to setup.");
-                      return NewUserSetup();
-                    }
-                    print("Returning HomePage for existing user.");
-                    return HomePage();
-                  },
-                ),
-        );
+        print("User: ${user?.uid}");
+        return user == null
+            ? AuthenticationPage()
+            : StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .snapshots(),
+                builder: (context, userDocSnapshot) {
+                  if (!userDocSnapshot.hasData) {
+                    return SplashScreen(onInitializationComplete: () {});
+                  }
+                  final userData =
+                      userDocSnapshot.data!.data() as Map<String, dynamic>;
+                  if (userData['isNewUser'] == true) {
+                    return NewUserSetup();
+                  }
+                  if (userData['isFetchingBooks'] == true) {
+                    return LoadingPage();
+                  }
+                  return HomePage();
+                },
+              );
       },
     );
   }
