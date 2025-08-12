@@ -251,8 +251,6 @@ class _ExplorePage extends State<ExplorePage> {
 
     List<Container> cards = _books.map((book) {
       return Container(
-          height: double.infinity,
-          width: double.infinity,
           padding: EdgeInsets.all(12),
           decoration: BoxDecoration(color: appTheme.colorScheme.primary),
           child: SingleChildScrollView(
@@ -354,49 +352,141 @@ class _ExplorePage extends State<ExplorePage> {
       backgroundColor: appTheme.colorScheme.primary,
       body: (_books.isEmpty || _books.length < 2)
           ? Center(child: Text('No books available.'))
-          : CardSwiper(
-              isLoop: true,
-              controller: _swiperController,
-              cardsCount: _books.length,
-              numberOfCardsDisplayed: 2,
-              backCardOffset: Offset(0, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-              scale: 1.0,
-              onSwipe: (previousIndex, currentIndex, direction) {
-                print(
-                    'onSwipe called: previousIndex=$previousIndex, direction=$direction');
+          : Column(mainAxisSize: MainAxisSize.max, children: [
+              Expanded(
+                child: CardSwiper(
+                  isLoop: true,
+                  controller: _swiperController,
+                  cardsCount: _books.length,
+                  numberOfCardsDisplayed: 2,
+                  backCardOffset: Offset(0, 40),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+                  scale: 1.0,
+                  onSwipe: (previousIndex, currentIndex, direction) {
+                    print(
+                        'onSwipe called: previousIndex=$previousIndex, direction=$direction');
 
-                if (currentIndex != null) {
-                  _onCardChanged(currentIndex);
-                }
-                if (direction == CardSwiperDirection.right) {
-                  try {
-                    firebaseFunctions!.httpsCallable("likeBook").call({
-                      "book": _books[previousIndex].docId,
-                      "user": FirebaseAuth.instance.currentUser!.uid,
-                    });
-                    print("Book Liked");
-                  } catch (e) {
-                    print("Error liking book: $e");
-                  }
-                } else if (direction == CardSwiperDirection.left) {
-                  try {
-                    firebaseFunctions!.httpsCallable("dislikeBook").call({
-                      "book": _books[previousIndex].docId,
-                      "user": FirebaseAuth.instance.currentUser!.uid,
-                    });
-                    print("Book disliked");
-                  } catch (e) {
-                    print("Error disliking book: $e");
-                  }
-                }
-                return true;
-              },
-              cardBuilder:
-                  (context, index, percentThresholdX, percentThresholdY) {
-                return cards[index];
-              },
-            ),
+                    if (currentIndex != null) {
+                      _onCardChanged(currentIndex);
+                    }
+                    if (direction == CardSwiperDirection.right) {
+                      try {
+                        firebaseFunctions!.httpsCallable("likeBook").call({
+                          "book": _books[previousIndex].docId,
+                          "user": FirebaseAuth.instance.currentUser!.uid,
+                        });
+                        print("Book Liked");
+                      } catch (e) {
+                        print("Error liking book: $e");
+                      }
+                    } else if (direction == CardSwiperDirection.left) {
+                      try {
+                        firebaseFunctions!.httpsCallable("dislikeBook").call({
+                          "book": _books[previousIndex].docId,
+                          "user": FirebaseAuth.instance.currentUser!.uid,
+                        });
+                        print("Book disliked");
+                      } catch (e) {
+                        print("Error disliking book: $e");
+                      }
+                    }
+                    return true;
+                  },
+                  cardBuilder:
+                      (context, index, percentThresholdX, percentThresholdY) {
+                    return cards[index];
+                  },
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                decoration: BoxDecoration(
+                    color: appTheme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ]),
+                child: SafeArea(
+                  top: false,
+                  child: SizedBox(
+                    height: 80,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Centered main buttons
+                        Align(
+                          alignment: Alignment.center,
+                          child: Row(
+                            spacing: 32,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  _swiperController
+                                      .swipe(CardSwiperDirection.left);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  shape: CircleBorder(),
+                                  padding: EdgeInsets.all(12),
+                                  backgroundColor:
+                                      appTheme.colorScheme.secondary,
+                                ),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 42,
+                                  color: appTheme.colorScheme.primary,
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  _swiperController
+                                      .swipe(CardSwiperDirection.right);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  shape: CircleBorder(),
+                                  padding: EdgeInsets.all(12),
+                                  backgroundColor:
+                                      appTheme.colorScheme.secondary,
+                                ),
+                                child: Icon(
+                                  Icons.favorite_border_rounded,
+                                  size: 42,
+                                  color: appTheme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Left-aligned redo button
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              _swiperController.undo();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              shape: CircleBorder(),
+                              padding: EdgeInsets.all(8),
+                              backgroundColor: appTheme.colorScheme.onPrimary,
+                            ),
+                            child: Icon(
+                              Icons.replay_rounded,
+                              size: 24,
+                              color: appTheme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ]),
     );
   }
 }

@@ -35,12 +35,18 @@ exports.likeBook = onCall(async (request, response) => {
     // move book from queue to liked books
     const userQueueRef = db.collection("users").doc(user).collection("books");
     const likedBooksRef = db.collection("users").doc(user).collection("likedBooks");
+    const dislikedBooksRef = db.collection("users").doc(user).collection("dislikedBooks");
 
     try {
-        // Get the book document
-        const bookDoc = await userQueueRef.doc(book).get();
+        // Get the book document by checking both queue and dislikedBooks.
+        var bookDoc = await userQueueRef.doc(book).get();
+        var loc = "books";
         if (!bookDoc.exists) {
-            throw new HttpsError("not-found", "Book not found in queue.");
+            bookDoc = await dislikedBooksRef.doc(book).get();
+            loc = "dislikedBooks";
+            if (!bookDoc.exists) {
+                throw new HttpsError("not-found", "Book not found in queue or dislikedBooks.");
+            }
         }
 
         const bookData = bookDoc.data();
@@ -48,12 +54,16 @@ exports.likeBook = onCall(async (request, response) => {
         // Add the book to the likedBooks collection
         await likedBooksRef.doc(book).set(bookData);
 
-        // Remove the book from the queue
-        await userQueueRef.doc(book).delete();
+        // Remove the book from loc
+        if (loc === "books") {
+            await userQueueRef.doc(book).delete();
+        } else if (loc === "dislikedBooks") {
+            await dislikedBooksRef.doc(book).delete();
+        }
 
-        // Count liked books and update shortlist every 10 likes
+        // Count liked books and update shortlist every 5 likes
         const likedBooksCount = (await likedBooksRef.get()).size;
-        if (likedBooksCount % 10 == 0) {
+        if (likedBooksCount % 5 == 0) {
             await updateShortlistedAuthorsForUser(user);
         }
         return { message: "Book moved to likedBooks successfully." };
@@ -77,26 +87,36 @@ exports.dislikeBook = onCall(async (request) => {
     // move book from queue to liked books
     const userQueueRef = db.collection("users").doc(user).collection("books");
     const dislikedBooksRef = db.collection("users").doc(user).collection("dislikedBooks");
+    const likedBooksRef = db.collection("users").doc(user).collection("likedBooks");
 
     try {
         // Get the book document
         const bookDoc = await userQueueRef.doc(book).get();
+        var loc = "books";
         if (!bookDoc.exists) {
-            throw new HttpsError("not-found", "Book not found in queue.");
+            bookDoc = await likedBooksRef.doc(book).get();
+            loc = "likedBooks";
+            if (!bookDoc.exists) {
+                throw new HttpsError("not-found", "Book not found in queue or likedBooks.");
+            }
         }
 
         const bookData = bookDoc.data();
 
-        // Add the book to the likedBooks collection
+        // Add the book to the dislikedBooks collection
         await dislikedBooksRef.doc(book).set(bookData);
 
-        // Remove the book from the queue
-        await userQueueRef.doc(book).delete();
+        // Remove the book from loc
+        if (loc === "books") {
+            await userQueueRef.doc(book).delete();
+        } else if (loc === "likedBooks") {
+            await likedBooksRef.doc(book).delete();
+        }
 
-        return { message: "Book moved to likedBooks successfully." };
+        return { message: "Book moved to dislikedBooks successfully." };
     } catch (error) {
-        logger.error("Error moving book to likedBooks", error);
-        throw new HttpsError("internal", "Failed to move book to likedBooks.");
+        logger.error("Error moving book to dislikedBooks", error);
+        throw new HttpsError("internal", "Failed to move book to dislikedBooks.");
     }
   });
 
