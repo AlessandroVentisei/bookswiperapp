@@ -471,7 +471,7 @@ class _ExplorePage extends State<ExplorePage> {
                             },
                             style: ElevatedButton.styleFrom(
                               shape: CircleBorder(),
-                              padding: EdgeInsets.all(12),
+                              padding: EdgeInsets.all(8),
                               backgroundColor: appTheme.colorScheme.onPrimary,
                             ),
                             child: Icon(
