@@ -63,7 +63,7 @@
 # Allow files necessary for Xcode Cloud
 !ios/Flutter/Generated.xcconfig
 !ios/.generated/
-!ios/.symlinks/
+
 
 # Exceptions to above rules.
 !**/ios/**/default.mode1v3
