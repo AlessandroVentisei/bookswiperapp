@@ -1,9 +1,8 @@
-import 'package:bookswiperapp/home.dart';
+import 'package:bookswiperapp/authentication_page.dart';
 import 'package:bookswiperapp/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
 import 'dart:async';
-// import 'package:bookswiperapp/home.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -28,7 +27,6 @@ class _LoadingPageState extends State<LoadingPage> {
     "Curating favorites",
   ];
   int _headlineIndex = 0;
-  // Removed unused _pageController
   Timer? _headlineTimer;
 
   @override
@@ -61,23 +59,15 @@ class _LoadingPageState extends State<LoadingPage> {
           .collection('books');
       await for (var snapshot in booksRef.snapshots()) {
         print("books in snapshot: ${snapshot.docs.length}");
-        // Check if there are any books in the user's collection
-        // If there are, set the 'isFetchingBooks' flag to false
-        // If not, continue waiting for books to be added
         if (snapshot.docs.isNotEmpty) {
           FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
               .update({'isFetchingBooks': false});
-        // this update will force a rebuild to update the UI
-        // Note this would be better updated in the function that fetches books
-        // but this is a quick fix to ensure the UI updates see new issue
-        // for future improvements (pv) - then -waitForBooks will not be needed
           break;
         }
       }
     }
-    // Optionally, call any additional onLoaded logic
     if (widget.onLoaded != null) await widget.onLoaded!();
   }
 
@@ -91,7 +81,6 @@ class _LoadingPageState extends State<LoadingPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Top text
               Text(
                 _headlines[_headlineIndex],
                 style: appTheme.textTheme.headlineMedium!.copyWith(
@@ -102,16 +91,14 @@ class _LoadingPageState extends State<LoadingPage> {
               const SizedBox(height: 16),
               Text(
                 'This may take a moment as we search deep in the catalogues of OpenLibrary.org',
-                style: TextStyle(fontSize: 16),
+                style: const TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
-              // Row with OpenLibrary logo, dashed line, and animated book
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // OpenLibrary logo
                   SizedBox(
                     width: 80,
                     height: 80,
@@ -121,10 +108,8 @@ class _LoadingPageState extends State<LoadingPage> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  // Animated dashed line
                   AnimatedDashedLine(width: 80, height: 2),
                   const SizedBox(width: 16),
-                  // Animated book (matchbook)
                   SizedBox(
                     width: 80,
                     height: 80,
@@ -135,6 +120,14 @@ class _LoadingPageState extends State<LoadingPage> {
                   ),
                 ],
               ),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                },
+                child: const Text('Logout'),
+              ),
+              const SizedBox(height: 32),
             ],
           ),
         ),

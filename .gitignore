@@ -77,3 +77,4 @@ node_modules
 functions/serviceAccountKey.json
 functions/test_bookshop_scrape.js
 functions/keys.json
+.flutter-plugins-dependencies

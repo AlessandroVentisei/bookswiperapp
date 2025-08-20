@@ -8,7 +8,6 @@ const myFunctions = require('../index');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-jest.mock('axios');
 
 describe('Queue Functions', () => {
   let wrappedLikeBook, wrappedFetchAndEnrichBooks;
@@ -34,6 +33,15 @@ describe('Queue Functions', () => {
   it('should return error if book param is missing in likeBook', async () => {
     await expect(wrappedLikeBook({ user: 'user1' })).rejects.toThrow();
   });
+  it('should fetch books from the ISBN database and store in firestore', async () => {
+        // Arrange: create user and book in Firestore
+    const userId = 'testuser';
+    const bookId = 'testbook';
+    const workKey = '/works/OL66554W';
+    await db.collection('users').doc(userId).set({"username": "testuser", subjectKeywords: ["science-fiction", "non-fiction physics"], fetchedSubjects: [], currentIndex: 0, isUpdating: false });
+    await wrappedFetchAndEnrichBooks({ data: { userId } });
+
+  }, 10000);
 
   it('should enrich a book document with OpenLibrary data', async () => {
     // Arrange: create user and book in Firestore

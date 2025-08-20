@@ -1,14 +1,23 @@
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
-import { googleAI } from '@genkit-ai/googleai';
-import { genkit } from 'genkit';
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const { googleAI } = require('@genkit-ai/googleai');
+const { genkit } = require('genkit');
 
-// ESM-compatible __dirname
-const __dirname = path.dirname(new URL(import.meta.url).pathname);
-const keysPath = path.join(__dirname, 'keys.json');
-const { googleGenkit } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
-process.env.GOOGLE_API_KEY = googleGenkit;
+// Load API key from env or keys.json (optional for tests)
+function loadGoogleApiKey() {
+  if (process.env.GOOGLE_API_KEY) return process.env.GOOGLE_API_KEY;
+  try {
+    const keysPath = path.join(__dirname, 'keys.json');
+    if (fs.existsSync(keysPath)) {
+      const { googleGenkit } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+      return googleGenkit;
+    }
+  } catch (_) {}
+  return undefined;
+}
+const key = loadGoogleApiKey();
+if (key) process.env.GOOGLE_API_KEY = key;
 
 // Initialize Genkit with GoogleAI plugin
 const ai = genkit({
@@ -16,7 +25,7 @@ const ai = genkit({
   model: googleAI.model('gemini-2.5-flash'),
 });
 
-export async function enrichAuthorsWithOpenLibrary(suggestions) {
+async function enrichAuthorsWithOpenLibrary(suggestions) {
   const enriched = [];
   for (const suggestion of suggestions) {
     const name = suggestion.name;
@@ -53,7 +62,7 @@ function cleanGeminiJsonResponse(text) {
   return text.replace(/```json|```/gi, '').trim();
 }
 
-export async function getGeminiAuthorSuggestions(likedAuthors, subjectKeywords) {
+async function getGeminiAuthorSuggestions(likedAuthors, subjectKeywords) {
   const authorNames = likedAuthors.map(a => a.name).join(', ');
   const prompt = `A user has liked authors: ${authorNames}. Their favourite book subjects are: ${subjectKeywords.join(', ')}. Suggest 5 more authors they might enjoy, as a JSON array of objects with 'name' and (if possible) 'reason'.`;
   let suggestions = [];
@@ -70,3 +79,8 @@ export async function getGeminiAuthorSuggestions(likedAuthors, subjectKeywords) 
   }
   return suggestions;
 }
+
+module.exports = {
+  enrichAuthorsWithOpenLibrary,
+  getGeminiAuthorSuggestions,
+};
