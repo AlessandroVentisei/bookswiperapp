@@ -80,7 +80,9 @@ class _LoadingPageState extends State<LoadingPage> {
           padding: const EdgeInsets.all(32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 4,
             children: [
+              const Spacer(),
               Text(
                 _headlines[_headlineIndex],
                 style: appTheme.textTheme.headlineMedium!.copyWith(
@@ -126,6 +128,11 @@ class _LoadingPageState extends State<LoadingPage> {
                   await FirebaseAuth.instance.signOut();
                 },
                 child: const Text('Logout'),
+              ),
+              Text(
+                'Experiencing an issue?\nLogout and log back in again.',
+                style: appTheme.textTheme.bodyMedium,
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
             ],
