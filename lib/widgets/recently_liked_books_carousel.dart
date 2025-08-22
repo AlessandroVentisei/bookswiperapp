@@ -108,10 +108,8 @@ class RecentlyLikedBooksCarousel extends StatelessWidget {
                         style: appTheme.textTheme.bodyMedium,
                       ),
                       Text(
-                        (book.authors.isNotEmpty &&
-                                book.authors[0]['details'] != null &&
-                                book.authors[0]['details']['name'] != null)
-                            ? book.authors[0]['details']['name']
+                        (book.authors.isNotEmpty)
+                            ? book.authors[0]
                             : 'Unknown Author',
                         overflow: TextOverflow.ellipsis,
                         style: appTheme.textTheme.bodySmall,

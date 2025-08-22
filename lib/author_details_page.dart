@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:rive/rive.dart';
 
 class AuthorDetailsPage extends StatefulWidget {
-  final String authorKey;
   final String authorName;
   final String? reason; // Optional reason for the author details page
   final String? topWork; // Optional top work to highlight
@@ -16,7 +15,6 @@ class AuthorDetailsPage extends StatefulWidget {
 
   const AuthorDetailsPage({
     super.key,
-    required this.authorKey,
     required this.authorName,
     this.reason,
     this.topWork,
@@ -45,7 +43,7 @@ class _AuthorDetailsPageState extends State<AuthorDetailsPage> {
 
   Future<void> fetchAuthorDetails() async {
     print(widget.reason);
-    final url = 'https://openlibrary.org${widget.authorKey}.json';
+    final url = 'https://openlibrary.org/authors/${widget.authorName}.json';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
@@ -69,7 +67,7 @@ class _AuthorDetailsPageState extends State<AuthorDetailsPage> {
 
   Future<void> fetchAuthorWorks() async {
     final worksUrl =
-        'https://openlibrary.org${widget.authorKey}/works.json?limit=10';
+        'https://openlibrary.org/authors/${widget.authorName}/works.json?limit=10';
     try {
       final response = await http.get(Uri.parse(worksUrl));
       if (response.statusCode == 200) {

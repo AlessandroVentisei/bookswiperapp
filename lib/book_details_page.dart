@@ -36,15 +36,7 @@ class BookDetailsPage extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 4,
                 children: book.authors
-                    .where((author) =>
-                        author['details'] != null &&
-                        author['details']['name'] != null &&
-                        author['key'] != null)
-                    .toSet()
-                    .map<Widget>((author) => AuthorWidget(
-                          authorName: author['details']['name'],
-                          authorKey: author['key'],
-                        ))
+                    .map<Widget>((author) => AuthorWidget(authorName: author))
                     .toList(),
               ),
             if (book.data['publish_date'] != null)

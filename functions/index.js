@@ -11,59 +11,34 @@ const { user } = require("firebase-functions/v1/auth");
 const { shuffleArray } = require("./edition_functions.js");
 const { getGeminiAuthorSuggestions, enrichAuthorsWithOpenLibrary } = require('./author_functions.js');
 const { url } = require("inspector");
-const { gemini } = require("@genkit-ai/googleai");
+// Switch to Genkit Google AI plugin and model exports
+const { googleAI } = require('@genkit-ai/googleai');
+const { genkit, z } = require('genkit');
+
 initializeApp();
 const db = getFirestore();
 
-// Load ISBNDB API key from env, functions config, or local keys.json (dev only)
-function loadISBNApiKey() {
-  // Prefer environment variable on CI/production
-  if (process.env.ISBNDB_API_KEY) return process.env.ISBNDB_API_KEY;
-  // Local fallback for dev: functions/keys.json with shape { "isbn": "<API_KEY>" }
-  try {
-    const keysPath = path.join(__dirname, 'keys.json');
-    if (fs.existsSync(keysPath)) {
-      const isbn = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
-      return isbn;
-    }
-  } catch (_) {/* ignore */}
-  return undefined;
-}
-const IBSNkey = loadISBNApiKey();
+const IBSNkey = process.env.isbn
 let axiosConfig = {
   method: 'get',
   maxBodyLength: Infinity,
   headers: { 
-    'Authorization': IBSNkey.isbn
+    'Authorization': IBSNkey
   }
 };
 
-// Load API key from env or keys.json (optional for tests)
-function loadGoogleApiKey() {
-  if (process.env.GOOGLE_API_KEY) return process.env.GOOGLE_API_KEY;
-  try {
-    const keysPath = path.join(__dirname, 'keys.json');
-    if (fs.existsSync(keysPath)) {
-      const { googleGenkit } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
-      return googleGenkit;
-    }
-  } catch (_) {}
-  return undefined;
-}
-const key = loadGoogleApiKey();
-if (key) process.env.GOOGLE_API_KEY = key;
 
-// Initialize Genkit with GoogleAI plugin
 const ai = genkit({
-  plugins: [googleAI()],
-  model: googleAI.model('gemini-2.5-flash'),
+    // Use an absolute path so Jest/Cloud Functions can always find prompts
+    promptDir: path.join(__dirname, 'prompts'),
+    plugins: [
+        googleAI({
+            apiKey: process.env.GEMINI_API_KEY,
+        }),
+    ],
 });
 
-// I need functions for: when
-// 1. A user signs up, create a queue for them
-// 2. A use likes a book
-// 3. A user dislikes a book
-// 4. More books need to be fetched.
+console.log("Using Gemini API Key:", process.env.GEMINI_API_KEY ? "Set" : "Not Set");
 
 exports.likeBook = onCall(async (request, response) => {
     // This function will handle the liking of a book
@@ -334,26 +309,61 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
     return;
   }
   await userDocRef.update({ isUpdating: true });
-  // Declare enrichedBooks at the top so it's in scope
   const enrichedBooks = [];
-
-  //TODO: Generate another keyword using Gemini to break taste of user.
-  await ai.generate({
-    prompt: `Generate a book subject keyword which will break the taste of the user based on their current most liked subject keywords: ${subjectKeywords.join(', ')}. Return a single keyword.`,
-    model: googleAI.model('gemini-2.5-flash'),
-  }).then(async (response) => {
-    const newKeyword = response.text.replace(/```json|```/gi, '').trim();
-    if (newKeyword) {
-      subjectKeywords.push(newKeyword);
-      logger.log(`Generated new keyword for user ${userId}: ${newKeyword}`);
+  var output = [];
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      // Look up by prompt ID (filename without extension)
+      const fetchPrompt = ai.prompt('fetchBooks');
+      ({output} = await fetchPrompt({
+        num: 10,
+        books: likedBooksSnapshot.docs
+          .slice(0, 5)
+          .map(doc => doc.data().title)
+          .join(', '),
+      }));
+      // console.log('AI Output:', output);
+    } catch (error) {
+      logger.error(`Error generating new AI-generated recommendations for user ${userId}:`, error);
     }
-  }).catch((error) => {
-    logger.error(`Error generating new keyword for user ${userId}:`, error);
-  });
+  } else {
+    logger.log('GEMINI_API_KEY not set; skipping AI-generated recommendations.');
+  }
+
+  // fetch data from ISBNdb for AI recommendations
+  if (output.length > 0) {
+    for (const book of output) {
+      const bookTitle = book.title;
+      const bookUrl = `https://api2.isbndb.com/books/${encodeURI(bookTitle)}?page=1&pageSize=10&column=title&language=en&shouldMatchAll=1`;
+      try {
+        const bookResponse = await axios.request({ ...axiosConfig, url: bookUrl });
+        const bookData = bookResponse.data;
+        var perfectMatch = false;
+        //store book with correct title.
+        const filteredBooks = bookData.books.filter(b => b.title.toLowerCase() === bookTitle.toLowerCase());
+        // match author if possible
+        for (const b of filteredBooks) {
+            if (b.authors && b.authors.includes(book.author)) {
+                enrichedBooks.push({ ...b, createdAt: new Date(), index: userCurrentIndex++, reason_for_recommendation: book.reason_for_recommendation });
+                perfectMatch = true;
+                break; // Exit loop after finding the first matching book
+            }        
+        }
+        // If no exact author match found, take the first filtered book
+        if (filteredBooks.length > 0 && perfectMatch == false) {
+            const b = filteredBooks[0];
+            enrichedBooks.push({ ...b, createdAt: new Date(), index: userCurrentIndex++, reason_for_recommendation: book.reason_for_recommendation });
+        }
+      } catch (error) {
+        logger.error(`Error fetching book data for ${book}:`, error);
+      }
+    }
+  }
+
   try {
     // Fetch books based on subject keywords
     const books = [];
-    const pageSize = 100; // Number of books to fetch per request
+    const pageSize = 50; // Number of books to fetch per request
     for (const keyword of subjectKeywords) {
       try {
         const formattedKeyword = keyword.replace(/\s+/g, "-").toLowerCase();
@@ -381,9 +391,7 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
         const formattedBooks = filteredBooks.map((book, indx) => ({
           ...book,
           createdAt: new Date(),
-          index: userCurrentIndex + indx
         }));
-        userCurrentIndex += formattedBooks.length;
         books.push(...formattedBooks);
       } catch (error) {
         logger.error(`Error fetching books for keyword "${keyword}" for user ${userId}`, error);
@@ -409,6 +417,17 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
 
   // shuffle the newBooks array
   shuffleArray(newBooks);
+  // insert AI recommended books at the start of the array
+  if (enrichedBooks.length > 0) {
+    newBooks = [...enrichedBooks, ...newBooks];
+  }
+  // assign index values
+  newBooks = newBooks.map((book, indx) => ({
+    ...book,
+    index: userCurrentIndex + indx
+  }));
+  // adjust userCurrentIndex.
+  userCurrentIndex += newBooks.length;
   // Batch write books
   const batch = db.batch();
   newBooks.forEach((book) => {
@@ -418,7 +437,7 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
   await batch.commit();
   await userDocRef.update({ isUpdating: false, currentIndex: userCurrentIndex });
   logger.log(`Fetched and stored ${newBooks.length} new books for user ${userId}`);
-  return { message: "Books fetched and stored successfully."};
+  return { message: "Books fetched and stored successfully." };
 });
 
 

@@ -1,0 +1,25 @@
+---
+model: googleai/gemini-2.5-flash-lite
+config:
+  temperature: 1
+  topK: 50
+  topP: 0.9
+  maxOutputTokens: 2000
+output:
+  format: json
+  schema:
+    type: array
+    items:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        reason_for_recommendation:
+          type: string
+      required: [title, author]
+---
+You are a book recommendations engine for an app which helps users find interesting and off the beaten track books to read.
+Based on the following books please recommend {{num}} more books (in english) for the user to check-out, some of them should be books which aren't too well known. Also include a short reason for the recommendation.
+User Books: {{books}}

@@ -64,7 +64,6 @@ class SuggestedAuthorsWidget extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (context) => AuthorDetailsPage(
                             authorName: name,
-                            authorKey: key,
                             reason: reason,
                             topWork: topWork,
                             avatarUrl: avatarUrl,

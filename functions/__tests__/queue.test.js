@@ -23,6 +23,11 @@ describe('Queue Functions', () => {
     // test.cleanup();
     // Properly clean up the Firebase Admin app to close open handles
     // await Promise.all(admin.apps.map(app => app.delete()));
+    /*await db.collection('users').get().then(snapshot => {
+      snapshot.forEach(doc => {
+        doc.ref.delete();
+      });
+    });*/
     jest.restoreAllMocks();
   });
 
@@ -41,7 +46,7 @@ describe('Queue Functions', () => {
     await db.collection('users').doc(userId).set({"username": "testuser", subjectKeywords: ["science-fiction", "non-fiction physics"], fetchedSubjects: [], currentIndex: 0, isUpdating: false });
     await wrappedFetchAndEnrichBooks({ data: { userId } });
 
-  }, 10000);
+  }, 20000);
 
   it('should enrich a book document with OpenLibrary data', async () => {
     // Arrange: create user and book in Firestore

@@ -293,14 +293,8 @@ class _ExplorePage extends State<ExplorePage> {
                         spacing: 6,
                         runSpacing: 4,
                         children: book.authors
-                            .where((author) =>
-                                author["details"] != null &&
-                                author["details"]["name"] != null &&
-                                author["key"] != null)
-                            .toSet()
                             .map((author) => AuthorWidget(
-                                  authorName: author["details"]["name"],
-                                  authorKey: author["key"],
+                                  authorName: author,
                                 ))
                             .toList(),
                       ),
