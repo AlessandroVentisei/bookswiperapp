@@ -1,3 +1,4 @@
+import 'package:bookswiperapp/author_details_page.dart';
 import 'package:flutter/material.dart';
 import 'package:bookswiperapp/theme/theme.dart';
 
@@ -13,10 +14,11 @@ class AuthorWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
         onTap: () {
-          Navigator.pushNamed(
+          Navigator.push(
             context,
-            '/authorDetails',
-            arguments: {'authorName': authorName},
+            MaterialPageRoute(
+              builder: (context) => AuthorDetailsPage(authorName: authorName),
+            ),
           );
         },
         child: Text(

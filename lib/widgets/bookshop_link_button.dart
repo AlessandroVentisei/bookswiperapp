@@ -7,9 +7,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class BookshopLinkButton extends StatelessWidget {
   final String? title;
+  final String? author;
   final String? isbn;
   final String? format;
-  const BookshopLinkButton({super.key, this.title, this.isbn, this.format});
+  const BookshopLinkButton(
+      {super.key,
+      required this.title,
+      required this.author,
+      this.isbn,
+      this.format});
 
   Future<void> _handlePress(BuildContext context, String url) async {
     try {
@@ -45,7 +51,7 @@ class BookshopLinkButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final keywords = (title ?? '').trim().replaceAll(' ', '+');
+    final keywords = ('$title $author').trim().replaceAll(' ', '+');
     final url =
         'https://uk.bookshop.org/search?affiliate=15242&keywords=$keywords&isbn=${isbn ?? ''}';
 

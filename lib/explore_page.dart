@@ -310,6 +310,7 @@ class _ExplorePage extends State<ExplorePage> {
                         alignment: Alignment.centerLeft,
                         child: BookshopLinkButton(
                           title: book.title,
+                          author: book.authors.join(", "),
                           isbn: (book.data['isbn_13'] is List &&
                                   book.data['isbn_13'].isNotEmpty)
                               ? book.data['isbn_13'][0]

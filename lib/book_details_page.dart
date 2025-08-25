@@ -11,7 +11,6 @@ class BookDetailsPage extends StatelessWidget {
   const BookDetailsPage({super.key, required this.book});
   @override
   Widget build(BuildContext context) {
-    print(book.description);
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -57,6 +56,7 @@ class BookDetailsPage extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 12.0),
                 child: BookshopLinkButton(
                   title: book.title,
+                  author: book.authors.join(", "),
                   isbn: (book.data['isbn_13'] as List)[0],
                 ),
               ),

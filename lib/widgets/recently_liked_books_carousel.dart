@@ -31,7 +31,7 @@ class RecentlyLikedBooksCarousel extends StatelessWidget {
                     width: 100,
                     height: 100,
                     child: RiveAnimation.asset(
-                      '/Users/Alex/Desktop/FlutterDev/bookswiperapp/lib/assets/loading_book.riv',
+                      'lib/assets/loading_book.riv',
                       fit: BoxFit.contain,
                       alignment: Alignment.center,
                       animations: const ['loading'],
@@ -53,7 +53,7 @@ class RecentlyLikedBooksCarousel extends StatelessWidget {
                     width: 100,
                     height: 100,
                     child: RiveAnimation.asset(
-                      '/Users/Alex/Desktop/FlutterDev/bookswiperapp/lib/assets/loading_book.riv',
+                      'lib/assets/loading_book.riv',
                       fit: BoxFit.contain,
                       alignment: Alignment.center,
                       animations: const ['loading'],

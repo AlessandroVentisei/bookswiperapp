@@ -8,17 +8,23 @@ const { initializeApp } = require("firebase-admin/app");
 const functions = require("firebase-functions");
 const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { user } = require("firebase-functions/v1/auth");
-const { shuffleArray } = require("./edition_functions.js");
+const { shuffleArray, fetchBookshopCover } = require("./edition_functions.js");
 const { getGeminiAuthorSuggestions, enrichAuthorsWithOpenLibrary } = require('./author_functions.js');
 const { url } = require("inspector");
 // Switch to Genkit Google AI plugin and model exports
 const { googleAI } = require('@genkit-ai/googleai');
 const { genkit, z } = require('genkit');
 
+// Load environment variables from .env file for local development
+if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+}
+
 initializeApp();
 const db = getFirestore();
 
-const IBSNkey = process.env.isbn
+// Try multiple possible environment variable names
+const IBSNkey = process.env.ISBN_API_KEY || process.env.isbn || functions.config().isbn?.key;
 let axiosConfig = {
   method: 'get',
   maxBodyLength: Infinity,
@@ -33,12 +39,17 @@ const ai = genkit({
     promptDir: path.join(__dirname, 'prompts'),
     plugins: [
         googleAI({
-            apiKey: process.env.GEMINI_API_KEY,
+            apiKey: process.env.GOOGLE_AI || process.env.GEMINI_API_KEY || functions.config().gemini?.key,
         }),
     ],
 });
 
-console.log("Using Gemini API Key:", process.env.GEMINI_API_KEY ? "Set" : "Not Set");
+
+logger.log("Environment check", {
+    nodeEnv: process.env.NODE_ENV,
+    isbnKey: IBSNkey ? "Present" : "Missing",
+    geminiKey: (process.env.GOOGLE_AI || process.env.GEMINI_API_KEY || functions.config().gemini?.key) ? "Present" : "Missing"
+});
 
 exports.likeBook = onCall(async (request, response) => {
     // This function will handle the liking of a book
@@ -363,7 +374,7 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
   try {
     // Fetch books based on subject keywords
     const books = [];
-    const pageSize = 50; // Number of books to fetch per request
+    const pageSize = 20; // Number of books to fetch per request
     for (const keyword of subjectKeywords) {
       try {
         const formattedKeyword = keyword.replace(/\s+/g, "-").toLowerCase();
@@ -421,23 +432,66 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
   if (enrichedBooks.length > 0) {
     newBooks = [...enrichedBooks, ...newBooks];
   }
-  // assign index values
+  await Promise.all(newBooks.map(async (book, indx) => {
+    book.bookshop_cover_url = await fetchBookshopCover(book.title, book.authors[0]);
+  }));
   newBooks = newBooks.map((book, indx) => ({
     ...book,
     index: userCurrentIndex + indx
-  }));
-  // adjust userCurrentIndex.
-  userCurrentIndex += newBooks.length;
-  // Batch write books
-  const batch = db.batch();
-  newBooks.forEach((book) => {
-    const bookDocRef = queueRef.doc();
-    batch.set(bookDocRef, book);
-  });
-  await batch.commit();
-  await userDocRef.update({ isUpdating: false, currentIndex: userCurrentIndex });
-  logger.log(`Fetched and stored ${newBooks.length} new books for user ${userId}`);
-  return { message: "Books fetched and stored successfully." };
+    }));
+    const batch = db.batch();
+    newBooks.forEach((book) => {
+        const bookDocRef = queueRef.doc();
+        batch.set(bookDocRef, book);
+    });
+    await batch.commit();
+    await userDocRef.update({ isUpdating: false, currentIndex: userCurrentIndex });
+    logger.log(`Fetched and stored ${newBooks.length} new books for user ${userId}`);
+    return { message: "Books fetched and stored successfully." };
+});
+
+exports.fetchAuthorInfo = onCall(async (request) => {
+    const authorName = request.data.authorName;
+    
+    if (!authorName) {
+        throw new HttpsError("invalid-argument", "Missing authorName parameter");
+    }
+    
+    const authorInfo = {};
+    
+    // Log the API key status for debugging
+    logger.log("API Key check", {
+        isbnKeyPresent: IBSNkey ? "Yes" : "No",
+        isbnKeyLength: IBSNkey ? IBSNkey.length : 0,
+        authorName: authorName
+    });
+    
+    if (!IBSNkey) {
+        logger.error("ISBNdb API key not configured");
+        throw new HttpsError("failed-precondition", "ISBNdb API key not configured");
+    }
+    
+    // Fetch author information from ISBNdb
+    try {
+        const encodedAuthorName = encodeURIComponent(authorName);
+        const authorUrl = `https://api2.isbndb.com/author/${encodedAuthorName}?page=1&pageSize=20&language=en`;
+        
+        logger.log(`Fetching author info from: ${authorUrl}`);
+        
+        const response = await axios.request({ 
+            ...axiosConfig, 
+            url: authorUrl,
+        });
+        
+        authorInfo.details = response.data;
+        logger.log(`Successfully fetched author info for ${authorName}`, {
+            hasAuthor: !!response.data.author,
+            responseKeys: Object.keys(response.data)
+        });
+    } catch (error) {
+        logger.error(`Error fetching author info for ${authorName}`, error);
+    }
+    return authorInfo;
 });
 
 
