@@ -377,50 +377,75 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
     const pageSize = 20; // Number of books to fetch per request
     for (const keyword of subjectKeywords) {
       try {
-        const formattedKeyword = keyword.replace(/\s+/g, "-").toLowerCase();
-        // First, get the work_count for this subject
-        const subjectUrl = encodeURI(`https://api2.isbndb.com/books/${formattedKeyword}?page=1&pageSize=${pageSize}&column=subjects&language=en&shouldMatchAll=0`);
-        const subjectResponse = await axios.request({ ...axiosConfig, url: subjectUrl });
-        console.log('Subject Response:', subjectResponse.data.total);
-        const itemCount = subjectResponse.data.total || 0;
-        if (itemCount === 0) {continue};
-        // Pick a random page offset between 0 and top 2% of itemCount.
-        const maxPage = Math.round((itemCount/50)/pageSize);
-        const pageOffset = Math.floor(Math.random() * (maxPage))+1;
-        // Fetch a random page of works for this subject
-        const booksUrl = `https://api2.isbndb.com/books/${formattedKeyword}?page=${pageOffset}&pageSize=${pageSize}&column=subjects&language=en&shouldMatchAll=0`;
-        const booksResponse = await axios.request({ ...axiosConfig, url: booksUrl });
-        const bookData = booksResponse.data['books'] || [];
-        //filter out books independently published and before 1900.
-        const filteredBooks = bookData.filter(
-          (book) =>
-            book.publisher &&
-            book.publisher.toLowerCase() !== "independently published" &&
-            book.publisher.toLowerCase() !== "tor books" &&
-            Number(book.date_published) > 1900
-        );
-        const formattedBooks = filteredBooks.map((book, indx) => ({
-          ...book,
-          createdAt: new Date(),
-        }));
-        books.push(...formattedBooks);
+                    const formattedKeyword = keyword.replace(/\s+/g, "_").toLowerCase();
+            // First, get the work_count for this subject
+            const subjectUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true`;
+            const subjectResponse = await axios.get(subjectUrl);
+            const workCount = subjectResponse.data.work_count || 0;
+            if (workCount === 0) {continue};
+            // Pick a random offset between 0 and top 1% of workCount (limit to 12 per OpenLibrary API)
+            const maxOffset = Math.max(0, Math.round(workCount/100));
+            const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
+            // Fetch a random page of works for this subject
+            const worksUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true&offset=${randomOffset}`;
+            const worksResponse = await axios.get(worksUrl);
+            const bookData = worksResponse.data['works'] || [];
+            bookData.filter((book) => book.first_publish_year > 1980); // Filter out books published before 1980s (could be user parameter in the future)
+            const formattedBooks = bookData.map((book, indx) => ({
+                ...book,
+                createdAt: new Date(),
+            }));
+            books.push(...formattedBooks);
       } catch (error) {
         logger.error(`Error fetching books for keyword "${keyword}" for user ${userId}`, error);
       }
     }
     // Filter out books that are already in the queue/liked/disliked
     console.log(`Fetched ${books.length} books for user ${userId} with keywords: ${subjectKeywords.join(", ")}`);
-    const existingQueueBooks = queueSnapshot.docs.map((doc) => doc.data().title);
-    const existingLikedBooks = likedBooksSnapshot.docs.map((doc) => doc.data().title);
-    const existingDislikedBooks = dislikedBooksSnapshot.docs.map((doc) => doc.data().title);
+    const existingQueueBooks = queueSnapshot.docs.map((doc) => doc.data().key);
+    const existingLikedBooks = likedBooksSnapshot.docs.map((doc) => doc.data().key);
+    const existingDislikedBooks = dislikedBooksSnapshot.docs.map((doc) => doc.data().key);
     const existingBooks = [...existingQueueBooks, ...existingLikedBooks, ...existingDislikedBooks];
-    newBooks = books.filter((book) => !existingBooks.includes(book.title));
-    if (newBooks.length === 0) {
-      logger.log(`No new books found for user ${userId}`);
-      await userDocRef.update({ isUpdating: false });
-      return;
+    newBooks = books.filter((book) => !existingBooks.includes(book.key));
+
+   // Enrich and filter books
+    for (const book of newBooks) {
+        try {
+
+            // Fetch editions for the book
+            const editionsUrl = `https://openlibrary.org${book.key}/editions.json`;
+            const editionsResponse = await axios.get(editionsUrl);
+            const editionsData = editionsResponse.data;
+            if (!editionsData || !editionsData.entries || editionsData.entries.length === 0) continue;
+            const firstEdition = getMostRecentEdition(editionsData.entries);
+            if(!firstEdition) continue;
+            // Fetch all author details in parallel and attach to authors array
+            if (Array.isArray(book.authors)) {
+                book.authors = await Promise.all(
+                    book.authors.map(async (author) => {
+                        // Support both { key } and { author: { key } }
+                        const authorKey = author.key || (author.author && author.author.key);
+                        if (authorKey) {
+                            const authorUrl = `https://openlibrary.org${authorKey}.json`;
+                            const authorResponse = await axios.get(authorUrl);
+                            return { ...author, details: authorResponse.data };
+                        }
+                        return author;
+                    })
+                );
+            }
+            enrichedBooks.push({ ...book, ...firstEdition, authors: book.authors }); 
+        } catch (error) {
+            logger.error(`Error enriching book ${book.key}`, error);
+        }
     }
-  } catch (error) {
+
+    if (enrichedBooks.length === 0) {
+        logger.log(`No enriched books found for user ${userId}`);
+        await userDocRef.update({ isUpdating: false });
+        return;
+    }
+    } catch (error) {
     logger.error(`Error fetching books for user ${userId}`, error);
     await userDocRef.update({ isUpdating: false });
     throw new HttpsError("internal", "Failed to fetch and enrich books.");
