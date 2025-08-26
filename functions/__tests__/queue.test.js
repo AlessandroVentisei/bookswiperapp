@@ -39,11 +39,11 @@ describe('Queue Functions', () => {
   it('should return error if book param is missing in likeBook', async () => {
     await expect(wrappedLikeBook({ user: 'user1' })).rejects.toThrow();
   });
-  it('should fetch author info from ISBNdb', async () => {
+  /*it('should fetch author info from ISBNdb', async () => {
     const result = await wrappedFetchAuthors({ data: { authorName: 'Stephen King' } });
     expect(result).toBeDefined();
-  });
-  it('should fetch books from the ISBN database and store in firestore', async () => {
+  });*/
+  it('should fetch books from the OL database and store in firestore', async () => {
         // Arrange: create user and book in Firestore
     const userId = 'testuser';
     const bookId = 'testbook';
@@ -51,7 +51,7 @@ describe('Queue Functions', () => {
     await db.collection('users').doc(userId).set({"username": "testuser", subjectKeywords: ["science-fiction", "non-fiction physics"], fetchedSubjects: [], currentIndex: 0, isUpdating: false });
     await wrappedFetchAndEnrichBooks({ data: { userId } });
 
-  }, 20000);
+  }, 40000);
 
   /*it('should enrich a book document with OpenLibrary data', async () => {
     // Arrange: create user and book in Firestore

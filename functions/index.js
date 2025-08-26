@@ -8,7 +8,7 @@ const { initializeApp } = require("firebase-admin/app");
 const functions = require("firebase-functions");
 const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { user } = require("firebase-functions/v1/auth");
-const { shuffleArray, fetchBookshopCover } = require("./edition_functions.js");
+const { shuffleArray, fetchBookshopCover, getMostRecentEdition } = require("./edition_functions.js");
 const { getGeminiAuthorSuggestions, enrichAuthorsWithOpenLibrary } = require('./author_functions.js');
 const { url } = require("inspector");
 // Switch to Genkit Google AI plugin and model exports
@@ -39,7 +39,7 @@ const ai = genkit({
     promptDir: path.join(__dirname, 'prompts'),
     plugins: [
         googleAI({
-            apiKey: process.env.GOOGLE_AI || process.env.GEMINI_API_KEY || functions.config().gemini?.key,
+            apiKey: process.env.GEMINI_API_KEY,
         }),
     ],
 });
@@ -48,8 +48,34 @@ const ai = genkit({
 logger.log("Environment check", {
     nodeEnv: process.env.NODE_ENV,
     isbnKey: IBSNkey ? "Present" : "Missing",
-    geminiKey: (process.env.GOOGLE_AI || process.env.GEMINI_API_KEY || functions.config().gemini?.key) ? "Present" : "Missing"
+    geminiKey: process.env.GEMINI_API_KEY ? "Present" : "Missing"
 });
+
+// Sanitize objects before writing to Firestore:
+// - Remove any keys starting with "__" (reserved by Firestore, e.g. __name__, __src__)
+// - Drop undefined values
+// - Replace non-finite numbers with null
+function sanitizeForFirestore(value) {
+    if (Array.isArray(value)) {
+        return value.map((v) => sanitizeForFirestore(v));
+    }
+    if (value && typeof value === 'object') {
+        const out = {};
+        for (const [k, v] of Object.entries(value)) {
+            // Skip reserved keys
+            if (typeof k === 'string' && k.startsWith('__')) continue;
+            const sv = sanitizeForFirestore(v);
+            // Skip undefined values
+            if (sv === undefined) continue;
+            out[k] = sv;
+        }
+        return out;
+    }
+    if (typeof value === 'number' && !Number.isFinite(value)) return null;
+    // Firestore doesn't accept undefined
+    if (value === undefined) return null;
+    return value;
+}
 
 exports.likeBook = onCall(async (request, response) => {
     // This function will handle the liking of a book
@@ -341,104 +367,130 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
     logger.log('GEMINI_API_KEY not set; skipping AI-generated recommendations.');
   }
 
-  // fetch data from ISBNdb for AI recommendations
-  if (output.length > 0) {
-    for (const book of output) {
-      const bookTitle = book.title;
-      const bookUrl = `https://api2.isbndb.com/books/${encodeURI(bookTitle)}?page=1&pageSize=10&column=title&language=en&shouldMatchAll=1`;
-      try {
-        const bookResponse = await axios.request({ ...axiosConfig, url: bookUrl });
-        const bookData = bookResponse.data;
-        var perfectMatch = false;
-        //store book with correct title.
-        const filteredBooks = bookData.books.filter(b => b.title.toLowerCase() === bookTitle.toLowerCase());
-        // match author if possible
-        for (const b of filteredBooks) {
-            if (b.authors && b.authors.includes(book.author)) {
-                enrichedBooks.push({ ...b, createdAt: new Date(), index: userCurrentIndex++, reason_for_recommendation: book.reason_for_recommendation });
-                perfectMatch = true;
-                break; // Exit loop after finding the first matching book
-            }        
-        }
-        // If no exact author match found, take the first filtered book
-        if (filteredBooks.length > 0 && perfectMatch == false) {
-            const b = filteredBooks[0];
-            enrichedBooks.push({ ...b, createdAt: new Date(), index: userCurrentIndex++, reason_for_recommendation: book.reason_for_recommendation });
-        }
-      } catch (error) {
-        logger.error(`Error fetching book data for ${book}:`, error);
-      }
+    // Parallel OpenLibrary lookups for AI recommendations
+    if (output.length > 0) {
+        const aiResults = await Promise.allSettled(
+            output.map(async (rec) => {
+                const bookTitle = rec.title || '';
+                if (!bookTitle) return null;
+                const authorParam = rec.author ? `&author=${encodeURIComponent(rec.author)}` : '';
+                const searchUrl = `https://openlibrary.org/search.json?title=${encodeURIComponent(bookTitle)}${authorParam}&limit=10&language=eng`;
+                try {
+                    const resp = await axios.get(searchUrl);
+                    const docs = resp.data?.docs || [];
+                    if (!docs.length) return null;
+                    let chosen = docs.find(d => (d.title || '').toLowerCase() === bookTitle.toLowerCase());
+                    if (!chosen && rec.author) {
+                        const recAuthorLc = rec.author.toLowerCase();
+                        chosen = docs.find(d => Array.isArray(d.author_name) && d.author_name.some(a => a.toLowerCase() === recAuthorLc));
+                    }
+                    chosen = chosen || docs[0];
+                    return {
+                        title: chosen.title || bookTitle,
+                        authors: Array.isArray(chosen.author_name)
+                            ? chosen.author_name
+                            : (chosen.author_name ? [chosen.author_name] : []),
+                        key: chosen.key || (Array.isArray(chosen.work_key) ? chosen.work_key[0] : chosen.work_key) || null,
+                        first_publish_year: chosen.first_publish_year || null,
+                        createdAt: new Date(),
+                        reason_for_recommendation: rec.reason_for_recommendation,
+                    };
+                } catch (err) {
+                    logger.error(`Error fetching OpenLibrary data for AI title "${bookTitle}"`, err);
+                    return null;
+                }
+            })
+        );
+        aiResults.forEach(r => { if (r.status === 'fulfilled' && r.value) enrichedBooks.push(r.value); });
     }
-  }
 
-  try {
-    // Fetch books based on subject keywords
-    const books = [];
-    const pageSize = 20; // Number of books to fetch per request
-    for (const keyword of subjectKeywords) {
-      try {
+    try {
+        // Fetch books based on subject keywords (parallelized per keyword)
+        const books = [];
+        const pageSize = 20; // Number of books to fetch per request
+        const keywordFetches = await Promise.allSettled(
+            subjectKeywords.map(async (keyword) => {
+                try {
                     const formattedKeyword = keyword.replace(/\s+/g, "_").toLowerCase();
-            // First, get the work_count for this subject
-            const subjectUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true`;
-            const subjectResponse = await axios.get(subjectUrl);
-            const workCount = subjectResponse.data.work_count || 0;
-            if (workCount === 0) {continue};
-            // Pick a random offset between 0 and top 1% of workCount (limit to 12 per OpenLibrary API)
-            const maxOffset = Math.max(0, Math.round(workCount/100));
-            const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
-            // Fetch a random page of works for this subject
-            const worksUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true&offset=${randomOffset}`;
-            const worksResponse = await axios.get(worksUrl);
-            const bookData = worksResponse.data['works'] || [];
-            bookData.filter((book) => book.first_publish_year > 1980); // Filter out books published before 1980s (could be user parameter in the future)
-            const formattedBooks = bookData.map((book, indx) => ({
-                ...book,
-                createdAt: new Date(),
-            }));
-            books.push(...formattedBooks);
-      } catch (error) {
-        logger.error(`Error fetching books for keyword "${keyword}" for user ${userId}`, error);
-      }
-    }
+                    // First, get the work_count for this subject
+                    const subjectUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true`;
+                    const subjectResponse = await axios.get(subjectUrl);
+                    const workCount = subjectResponse.data.work_count || 0;
+                    if (workCount === 0) return [];
+                    // Pick a random offset between 0 and top 1% of workCount (limit to 12 per OpenLibrary API)
+                    const maxOffset = Math.max(0, Math.round(workCount / 100));
+                    const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
+                    // Fetch a random page of works for this subject
+                    const worksUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true&offset=${randomOffset}`;
+                    const worksResponse = await axios.get(worksUrl);
+                    const bookData = worksResponse.data['works'] || [];
+                    // Filter out books published before 1980s (could be user parameter in the future)
+                    const filtered = bookData.filter((b) => (b.first_publish_year || 0) > 1980);
+                    const formattedBooks = filtered.map((book, indx) => ({
+                        ...book,
+                        createdAt: new Date(),
+                    }));
+                    return formattedBooks;
+                } catch (error) {
+                    logger.error(`Error fetching books for keyword "${keyword}" for user ${userId}`, error);
+                    return [];
+                }
+            })
+        );
+        keywordFetches.forEach((res) => {
+            if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+                books.push(...res.value);
+            }
+        });
     // Filter out books that are already in the queue/liked/disliked
-    console.log(`Fetched ${books.length} books for user ${userId} with keywords: ${subjectKeywords.join(", ")}`);
     const existingQueueBooks = queueSnapshot.docs.map((doc) => doc.data().key);
     const existingLikedBooks = likedBooksSnapshot.docs.map((doc) => doc.data().key);
     const existingDislikedBooks = dislikedBooksSnapshot.docs.map((doc) => doc.data().key);
     const existingBooks = [...existingQueueBooks, ...existingLikedBooks, ...existingDislikedBooks];
     newBooks = books.filter((book) => !existingBooks.includes(book.key));
 
-   // Enrich and filter books
-    for (const book of newBooks) {
-        try {
+     // Enrich and filter books (parallelized per book)
+        const enrichResults = await Promise.allSettled(
+            newBooks.map(async (book) => {
+                try {
+                    // Fetch editions for the book
+                    const editionsUrl = `https://openlibrary.org${book.key}/editions.json`;
+                    const editionsResponse = await axios.get(editionsUrl);
+                    const editionsData = editionsResponse.data;
+                    if (!editionsData || !editionsData.entries || editionsData.entries.length === 0) return null;
+                    const firstEdition = getMostRecentEdition(editionsData.entries);
+                    if (!firstEdition) return null;
 
-            // Fetch editions for the book
-            const editionsUrl = `https://openlibrary.org${book.key}/editions.json`;
-            const editionsResponse = await axios.get(editionsUrl);
-            const editionsData = editionsResponse.data;
-            if (!editionsData || !editionsData.entries || editionsData.entries.length === 0) continue;
-            const firstEdition = getMostRecentEdition(editionsData.entries);
-            if(!firstEdition) continue;
-            // Fetch all author details in parallel and attach to authors array
-            if (Array.isArray(book.authors)) {
-                book.authors = await Promise.all(
-                    book.authors.map(async (author) => {
-                        // Support both { key } and { author: { key } }
-                        const authorKey = author.key || (author.author && author.author.key);
-                        if (authorKey) {
-                            const authorUrl = `https://openlibrary.org${authorKey}.json`;
-                            const authorResponse = await axios.get(authorUrl);
-                            return { ...author, details: authorResponse.data };
-                        }
-                        return author;
-                    })
-                );
+                    // Fetch all author details in parallel and attach to authors array
+                    let authors = book.authors;
+                    if (Array.isArray(authors)) {
+                        authors = await Promise.all(
+                            authors.map(async (author) => {
+                                try {
+                                    const authorKey = author.key || (author.author && author.author.key);
+                                    if (authorKey) {
+                                        const authorUrl = `https://openlibrary.org${authorKey}.json`;
+                                        const authorResponse = await axios.get(authorUrl);
+                                        return { ...author, details: authorResponse.data };
+                                    }
+                                } catch (_) {}
+                                return author;
+                            })
+                        );
+                    }
+
+                    return { ...book, ...firstEdition, authors };
+                } catch (error) {
+                    logger.error(`Error enriching book ${book.key}`, error);
+                    return null;
+                }
+            })
+        );
+        enrichResults.forEach((r) => {
+            if (r.status === 'fulfilled' && r.value) {
+                enrichedBooks.push(r.value);
             }
-            enrichedBooks.push({ ...book, ...firstEdition, authors: book.authors }); 
-        } catch (error) {
-            logger.error(`Error enriching book ${book.key}`, error);
-        }
-    }
+        });
 
     if (enrichedBooks.length === 0) {
         logger.log(`No enriched books found for user ${userId}`);
@@ -451,23 +503,38 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
     throw new HttpsError("internal", "Failed to fetch and enrich books.");
   }
 
+    // insert AI recommended books
+    if (enrichedBooks.length > 0) {
+        newBooks = [...enrichedBooks, ...newBooks];
+    }
   // shuffle the newBooks array
   shuffleArray(newBooks);
-  // insert AI recommended books at the start of the array
-  if (enrichedBooks.length > 0) {
-    newBooks = [...enrichedBooks, ...newBooks];
-  }
-  await Promise.all(newBooks.map(async (book, indx) => {
-    book.bookshop_cover_url = await fetchBookshopCover(book.title, book.authors[0]);
-  }));
-  newBooks = newBooks.map((book, indx) => ({
-    ...book,
-    index: userCurrentIndex + indx
+
+    await Promise.all(newBooks.map(async (book, indx) => {
+        // Derive author name string for cover fetching
+        let authorName = '';
+        try {
+            if (Array.isArray(book.authors) && book.authors.length > 0) {
+                const a0 = book.authors[0];
+                if (typeof a0 === 'string') authorName = a0;
+                else if (a0?.details?.name) authorName = a0.details.name;
+                else if (a0?.name) authorName = a0.name;
+                else if (a0?.author?.name) authorName = a0.author.name;
+            }
+        } catch {}
+        book.bookshop_cover_url = await fetchBookshopCover(book.title, authorName);
     }));
+    // add indexes for each entry for ordering in queue
+    newBooks = newBooks.map((book, indx) => ({
+        ...book,
+        index: userCurrentIndex + indx
+    }));
+    // Sanitize before writing
     const batch = db.batch();
     newBooks.forEach((book) => {
+        const sanitized = sanitizeForFirestore(book);
         const bookDocRef = queueRef.doc();
-        batch.set(bookDocRef, book);
+        batch.set(bookDocRef, sanitized);
     });
     await batch.commit();
     await userDocRef.update({ isUpdating: false, currentIndex: userCurrentIndex });
