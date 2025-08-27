@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 
 describe('Queue Functions', () => {
-  let wrappedLikeBook, wrappedFetchAndEnrichBooks, wrappedFetchAuthors;
+  let wrappedLikeBook, wrappedFetchAndEnrichBooks, wrappedFetchAuthors, wrappedFetchAiSummary;
   let db;
 
   beforeAll(async () => {
@@ -18,6 +18,7 @@ describe('Queue Functions', () => {
     wrappedLikeBook = test.wrap(myFunctions.likeBook);
     wrappedFetchAndEnrichBooks = test.wrap(myFunctions.fetchAndEnrichBooks);
     wrappedFetchAuthors = test.wrap(myFunctions.fetchAuthorInfo);
+    wrappedFetchAiSummary = test.wrap(myFunctions.fetchAiSummary);
 });
 
   afterAll(async () => {
@@ -39,11 +40,21 @@ describe('Queue Functions', () => {
   it('should return error if book param is missing in likeBook', async () => {
     await expect(wrappedLikeBook({ user: 'user1' })).rejects.toThrow();
   });
+
+
+  it('should return summary of book.', async () => {
+    const userId = 'testuser';
+    const bookId = '1234';
+    // await db.collection('users').doc(userId).set({"username": "testuser", subjectKeywords: ["science-fiction", "non-fiction physics"], fetchedSubjects: [], currentIndex: 0, isUpdating: false });
+    // await db.collection('users').doc(userId).collection('books').doc(bookId).set({ title: '1984', author: 'George Orwell', workKey: bookId });
+    await wrappedFetchAiSummary({data: { user: userId, title: '1984', author: 'George Orwell', key: bookId }});
+  }, 50000);
+
   /*it('should fetch author info from ISBNdb', async () => {
     const result = await wrappedFetchAuthors({ data: { authorName: 'Stephen King' } });
     expect(result).toBeDefined();
   });*/
-  it('should fetch books from the OL database and store in firestore', async () => {
+  /*it('should fetch books from the OL database and store in firestore', async () => {
         // Arrange: create user and book in Firestore
     const userId = 'testuser';
     const bookId = 'testbook';

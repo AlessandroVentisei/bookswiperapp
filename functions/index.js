@@ -77,6 +77,60 @@ function sanitizeForFirestore(value) {
     return value;
 }
 
+exports.fetchAiSummary = onCall(async (request, response) => {
+    const user = request.data.user;
+    const key = request.data.key
+    const title = request.data.title;
+    const author = request.data.author || '';
+    const bookDoc = await db.collection("users").doc(user).collection("books").where("workKey", "==", key).limit(1).get();
+    try {
+        if (bookDoc.empty) {
+            throw new HttpsError("not-found", "Book not found in queue.");
+        }
+        if(bookDoc.docs[0].data().ai_summary_fetched == true) {
+            throw new HttpsError("failed-precondition", "AI summary already fetched.");
+        }
+        const { data } = await axios.request('https://api-d7b62b.stack.tryrelevance.com/latest/studios/ef7579ab-3ad5-4b21-9c89-e4f0d2b4ecf2/trigger_webhook?project=2e2e491cd534-4180-a704-312a31299fd9', {
+            method: "POST",
+            headers: {"Content-Type":"application/json","Authorization":process.env.RELEVANCE_AI},
+            data: {"title":title,"author":author}
+        });
+                // Some AI providers return a JSON string in `llm_answer`. Normalize it to a clean object.
+                const raw = (data && typeof data === 'object' && 'llm_answer' in data)
+                    ? data.llm_answer
+                    : data;
+
+                let summary;
+                try {
+                    if (typeof raw === 'string') {
+                        // Strip optional code fences and parse JSON if possible
+                        const stripped = raw.trim()
+                            .replace(/^```(?:json)?\s*/i, '')
+                            .replace(/```\s*$/i, '');
+                        summary = JSON.parse(stripped);
+                    } else if (raw && typeof raw === 'object') {
+                        summary = raw;
+                    } else {
+                        summary = { text: String(raw ?? '') };
+                    }
+                } catch (_parseErr) {
+                    // Fallback: unescape common sequences and return as plain text
+                    const text = String(raw ?? '')
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\\"/g, '"')
+                        .replace(/^['"`]|['"`]$/g, '');
+                    summary = { text };
+                }
+                console.log(summary);
+                const search_result_organic = data.search_result_organic || [];
+                await bookDoc.docs[0].ref.update({ ai_summary: summary, ai_summary_fetched: true, search_result_organic: search_result_organic });
+                return "Summary fetched and stored.";
+    } catch (e) {
+        console.log(e);
+        throw new HttpsError('internal', 'Error fetching AI summary', String(e?.message || e));
+    }
+});
+
 exports.likeBook = onCall(async (request, response) => {
     // This function will handle the liking of a book
     // it must remove the book from the queue and add it to the liked books

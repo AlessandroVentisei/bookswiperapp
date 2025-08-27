@@ -242,73 +242,65 @@ class _AuthorDetailsPageState extends State<AuthorDetailsPage> {
                               SizedBox(
                                 height: 24,
                               ),
-                              Text(
-                                "Top Work",
-                                style: appTheme.textTheme.headlineSmall,
-                              ),
-                              ListTile(
-                                leading: BookshopLinkButton(
-                                  title: widget.topWork,
-                                  format: "small",
-                                ),
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                  widget.topWork.toString(),
+                              Text('Notable Works:',
+                                  style: appTheme.textTheme.headlineSmall),
+                              if (isLoadingWorks)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Center(
+                                      child: CircularProgressIndicator()),
+                                )
+                              else if (works != null && works!.isNotEmpty)
+                                ...works!.take(5).map(
+                                      (work) => ListTile(
+                                        leading: BookshopLinkButton(
+                                          author: work['authors'] != null &&
+                                                  work['authors'].isNotEmpty
+                                              ? (work['authors'][0] is Map
+                                                  ? (work['authors'][0]
+                                                          ['name'] ??
+                                                      '')
+                                                  : (work['authors'][0] ?? ''))
+                                              : '',
+                                          title: work['title'],
+                                          format: "small",
+                                        ),
+                                        contentPadding: EdgeInsets.zero,
+                                        title: Text(
+                                          work['title'] ?? 'Untitled',
+                                          style: appTheme.textTheme.bodyLarge,
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 2,
+                                        ),
+                                        subtitle: work['description'] != null
+                                            ? Text(
+                                                work['description'] is String
+                                                    ? work['description']
+                                                    : work['description']
+                                                            ['value'] ??
+                                                        '',
+                                                style: appTheme
+                                                    .textTheme.bodyMedium,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              )
+                                            : null,
+                                        onTap: () {
+                                          final workKey = work['key'];
+                                          if (workKey != null) {
+                                            launchUrl(Uri.parse(
+                                                'https://uk.bookshop.org/search?affiliate=15242&keywords=${(work["title"] ?? '').toString().replaceAll(' ', '+')}'));
+                                          }
+                                        },
+                                      ),
+                                    ),
+                              if (works != null && works!.isEmpty)
+                                Text(
+                                  'No works found.',
                                   style: appTheme.textTheme.bodyLarge,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 2,
                                 ),
-                                onTap: () {
-                                  launchUrl(Uri.parse(
-                                      'https://uk.bookshop.org/search?affiliate=15242&keywords=${("${widget.topWork} ${widget.authorName}").replaceAll(' ', '+')}'));
-                                },
-                              )
                             ],
-                          ),
-                        SizedBox(height: 24),
-                        Text('Notable Works:',
-                            style: appTheme.textTheme.headlineSmall),
-                        if (isLoadingWorks)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        else if (works != null && works!.isNotEmpty)
-                          ...works!.take(5).map((work) => ListTile(
-                                leading: BookshopLinkButton(
-                                  title: work['title'],
-                                  format: "small",
-                                ),
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                  work['title'] ?? 'Untitled',
-                                  style: appTheme.textTheme.bodyLarge,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 2,
-                                ),
-                                subtitle: work['description'] != null
-                                    ? Text(
-                                        work['description'] is String
-                                            ? work['description']
-                                            : work['description']['value'] ??
-                                                '',
-                                        style: appTheme.textTheme.bodyMedium,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      )
-                                    : null,
-                                onTap: () {
-                                  final workKey = work['key'];
-                                  if (workKey != null) {
-                                    launchUrl(Uri.parse(
-                                        'https://uk.bookshop.org/search?affiliate=15242&keywords=${work["title"]?.replaceAll(' ', '+') ?? ''}'));
-                                  }
-                                },
-                              )),
-                        if (works != null && works!.isEmpty)
-                          Text(
-                            'No works found.',
-                            style: appTheme.textTheme.bodyLarge,
                           ),
                       ],
                     ),
