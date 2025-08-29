@@ -14,7 +14,7 @@ Future<List<Book>> fetchBooks({
       .doc(user.uid)
       .collection('books')
       .orderBy('index', descending: false);
-  Query query = userRef.limit((batchSize / 2).toInt());
+  Query query = userRef.limit(batchSize);
   if (lastDoc != null) {
     query = query.startAfterDocument(lastDoc);
   }

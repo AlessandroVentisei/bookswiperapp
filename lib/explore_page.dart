@@ -26,8 +26,10 @@ class ExplorePage extends StatefulWidget {
 class _ExplorePage extends State<ExplorePage> {
   int cardIndex = 0;
   List<Book> _books = [];
+  List<Book> _backupBooks = [];
   bool isProcessingSwipe = false;
   DocumentSnapshot? _lastDoc;
+  bool _endOfBooks = false;
   bool _isLoading = false;
   bool _hasMore = true;
   final int _batchSize = 10;
@@ -48,11 +50,20 @@ class _ExplorePage extends State<ExplorePage> {
       batchSize: _batchSize * 2, // Fetch double the batch size for preloading
       lastDoc: null, // fresh start
     );
+    // set backup books to the last 10 books fetched and the first half of the books to the main queue.
+    if (books.isEmpty) {
+      setState(() {
+        _hasMore = false;
+        _endOfBooks = true;
+      });
+      return;
+    }
 
     if (books.length >= _batchSize) {
       setState(() {
-        // Clear and replace full queue
-        _books = books;
+        // Clear and replace main and backup queues
+        _backupBooks = books.sublist(books.length ~/ 2);
+        _books = books.sublist(0, books.length ~/ 2);
       });
 
       // Update _lastDoc
@@ -81,81 +92,22 @@ class _ExplorePage extends State<ExplorePage> {
     setState(() => _isLoading = false);
   }
 
-  Future<void> _fetchFirstHalf() async {
-    if (_isLoading || !_hasMore) return;
-    setState(() => _isLoading = true);
-    var prevIndex = cardIndex;
-    final books = await fetchBooks(
-      batchSize: _batchSize,
-      lastDoc: _lastDoc,
-    );
-    if (books.isNotEmpty) {
-      setState(() {
-        // replace the ealier range with new books in queue.
-        _books.replaceRange(0, (_books.length ~/ 2), books);
-      });
-      // Update _lastDoc to the last fetched document snapshot
-      final lastDocRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
-          .collection('books')
-          .doc(books.last.docId);
-      _lastDoc = await lastDocRef.get();
-      // check that index is not out of bounds
-      if (prevIndex >= _books.length - 1) {
-        prevIndex = 0;
-      }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _swiperController.moveTo(prevIndex);
-      });
-    } else {
-      setState(() => _hasMore = false);
+  
+
+  Future<void> _fetchBackupBooks() async {
+    final newBooks = await fetchBooks(batchSize: 10, lastDoc: _lastDoc);
+    setState(() {
+      _backupBooks.addAll(newBooks);
+    });
+    // if newBooks are less than 10 the we will need to trigger a new
+    // fetchAndEnrichBooks callable to get more books.
+
+    if (newBooks.length < 10) {
       await firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({
         "userId": FirebaseAuth.instance.currentUser!.uid,
       });
-      _waitForBooksAndReload();
     }
-    setState(() => _isLoading = false);
   }
-
-  Future<void> _fetchSecondHalf() async {
-    print("fetching second half of books");
-    if (_isLoading || !_hasMore) return;
-    setState(() => _isLoading = true);
-    var prevIndex = cardIndex;
-    final books = await fetchBooks(
-      batchSize: _batchSize,
-      lastDoc: _lastDoc,
-    );
-    if (books.isNotEmpty) {
-      setState(() {
-        // replace the ealier range with new books in queue.
-        _books.replaceRange(_books.length ~/ 2, _books.length, books);
-      });
-      // Update _lastDoc to the last fetched document snapshot
-      final lastDocRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
-          .collection('books')
-          .doc(books.last.docId);
-      _lastDoc = await lastDocRef.get();
-      // check that index is not out of bounds
-      if (prevIndex >= _books.length - 1) {
-        prevIndex = 0;
-      }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _swiperController.moveTo(prevIndex);
-      });
-    } else {
-      setState(() => _hasMore = false);
-      await firebaseFunctions!.httpsCallable("fetchAndEnrichBooks").call({
-        "userId": FirebaseAuth.instance.currentUser!.uid,
-      });
-      _waitForBooksAndReload();
-    }
-    setState(() => _isLoading = false);
-  }
-
   @override
   void dispose() {
     super.dispose();
@@ -163,10 +115,7 @@ class _ExplorePage extends State<ExplorePage> {
 
   Future<void> _waitForBooksAndReload() async {
     final user = FirebaseAuth.instance.currentUser!;
-    final userBooksRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('books');
+    final userBooksRef = FirebaseFirestore.instance.collection('users').doc(user.uid).collection('books');
 
     // Checking every 2 seconds for a max of 90 seconds
     for (int i = 0; i < 45; i++) {
@@ -187,16 +136,6 @@ class _ExplorePage extends State<ExplorePage> {
 
   @override
   Widget build(BuildContext context) {
-    void _onCardChanged(int newIndex) {
-      cardIndex = newIndex;
-      // Rolling pre-loading system.
-      if (cardIndex == (_batchSize ~/ 2) + 1 && _hasMore && !_isLoading) {
-        _fetchFirstHalf();
-      }
-      if (cardIndex == 0 && _hasMore && !_isLoading) {
-        _fetchSecondHalf();
-      }
-    }
 
     if (_books.isEmpty && _isLoading) {
       return Scaffold(
@@ -208,8 +147,7 @@ class _ExplorePage extends State<ExplorePage> {
           leading: IconButton(
             icon: Icon(Icons.arrow_back_ios),
             onPressed: () {
-              Navigator.pop(
-                  context, MaterialPageRoute(builder: (context) => HomePage()));
+              Navigator.pop(context, MaterialPageRoute(builder: (context) => HomePage()));
             },
           ),
         ),
@@ -287,8 +225,7 @@ class _ExplorePage extends State<ExplorePage> {
                             style: appTheme.textTheme.headlineMedium,
                             overflow: TextOverflow.fade,
                           ),
-                          Text(book.data["publish_date"] ?? '',
-                              style: appTheme.textTheme.bodyMedium),
+                          Text(book.data["publish_date"] ?? '', style: appTheme.textTheme.bodyMedium),
                         ],
                       ),
                       Wrap(
@@ -296,9 +233,7 @@ class _ExplorePage extends State<ExplorePage> {
                         runSpacing: 4,
                         children: book.authors
                             .where((author) =>
-                                author["details"] != null &&
-                                author["details"]["name"] != null &&
-                                author["key"] != null)
+                                author["details"] != null && author["details"]["name"] != null && author["key"] != null)
                             .toSet()
                             .map((author) => AuthorWidget(
                                   authorName: author["details"]["name"],
@@ -318,18 +253,13 @@ class _ExplorePage extends State<ExplorePage> {
                         alignment: Alignment.centerLeft,
                         child: BookshopLinkButton(
                           title: book.title,
-                          isbn: (book.data['isbn_13'] is List &&
-                                  book.data['isbn_13'].isNotEmpty)
+                          isbn: (book.data['isbn_13'] is List && book.data['isbn_13'].isNotEmpty)
                               ? book.data['isbn_13'][0]
                               : (book.data['isbn_13'] ?? null),
                         ),
                       ),
                       Text(
-                        "Subjects: " +
-                            book.subjects
-                                .toString()
-                                .replaceAll("[", "")
-                                .replaceAll("]", ""),
+                        "Subjects: " + book.subjects.toString().replaceAll("[", "").replaceAll("]", ""),
                       )
                     ],
                   ),
@@ -346,8 +276,7 @@ class _ExplorePage extends State<ExplorePage> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios),
           onPressed: () {
-            Navigator.pop(
-                context, MaterialPageRoute(builder: (context) => HomePage()));
+            Navigator.pop(context, MaterialPageRoute(builder: (context) => HomePage()));
           },
         ),
       ),
@@ -358,17 +287,13 @@ class _ExplorePage extends State<ExplorePage> {
               isLoop: true,
               controller: _swiperController,
               cardsCount: _books.length,
-              numberOfCardsDisplayed: 2,
+              numberOfCardsDisplayed: 3,
               backCardOffset: Offset(0, 40),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
               scale: 1.0,
               onSwipe: (previousIndex, currentIndex, direction) {
                 print(
                     'onSwipe called: previousIndex=$previousIndex, current index =$currentIndex, direction=$direction');
-                _books[previousIndex].wasSwiped = true;
-                if (currentIndex != null) {
-                  _onCardChanged(currentIndex);
-                }
                 if (direction == CardSwiperDirection.right) {
                   try {
                     firebaseFunctions!.httpsCallable("likeBook").call({
@@ -390,11 +315,38 @@ class _ExplorePage extends State<ExplorePage> {
                     print("Error disliking book: $e");
                   }
                 }
+                // Mark the book as swiped
+                _books[previousIndex].wasSwiped = true;
+                if (_backupBooks.isNotEmpty) {
+                  setState(() {
+                    _books[previousIndex] = _backupBooks.removeAt(0);
+                  });
+                  if (_backupBooks.length < 5) _fetchBackupBooks();
+                } else {
+                  // Show loading card/message
+                  _endOfBooks = true;
+                  print("No backup books available, showing loading card.");
+                }
                 return true;
               },
-              cardBuilder:
-                  (context, index, percentThresholdX, percentThresholdY) {
-                return cards[index];
+              cardBuilder: (context, index, percentThresholdX, percentThresholdY) {
+                if (!_endOfBooks) {
+                  return cards[index];
+                } else {
+                  return Container(
+                    height: double.infinity,
+                    width: double.infinity,
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: appTheme.colorScheme.primary),
+                    child: Center(
+                      child: Text(
+                        "No more books available. Please check back later.",
+                        style: appTheme.textTheme.headlineMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
               },
             ),
     );
