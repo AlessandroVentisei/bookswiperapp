@@ -117,27 +117,9 @@ final ThemeData appTheme = ThemeData(
   outlinedButtonTheme: OutlinedButtonThemeData(
     style: ButtonStyle(
       alignment: Alignment.center,
-      padding: WidgetStatePropertyAll<EdgeInsetsGeometry>(
-          EdgeInsets.fromLTRB(24, 18, 24, 12)),
       backgroundColor:
           MaterialStateProperty.all<Color>(Color.fromARGB(40, 239, 239, 239)),
       foregroundColor: MaterialStateProperty.all<Color>(surfaceColor),
-      shape: MaterialStateProperty.all<OutlinedBorder>(
-        RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(100),
-        ),
-      ),
-      side: MaterialStateProperty.all<BorderSide>(
-        BorderSide(
-          color: surfaceColor,
-          width: 1.0,
-          style: BorderStyle.solid,
-        ),
-      ),
-      textStyle: WidgetStateProperty.all<TextStyle>(
-        GoogleFonts.sortsMillGoudy(
-            color: Colors.white, fontSize: 20.0, height: 1.0),
-      ),
     ),
   ),
   colorScheme: ColorScheme(

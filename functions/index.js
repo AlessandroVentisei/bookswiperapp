@@ -82,7 +82,7 @@ exports.fetchAiSummary = onCall(async (request, response) => {
     const key = request.data.key
     const title = request.data.title;
     const author = request.data.author || '';
-    const bookDoc = await db.collection("users").doc(user).collection("books").where("workKey", "==", key).limit(1).get();
+    const bookDoc = await db.collection("users").doc(user).collection("books").where("key", "==", key).limit(1).get();
     try {
         if (bookDoc.empty) {
             throw new HttpsError("not-found", "Book not found in queue.");
@@ -440,12 +440,7 @@ exports.fetchAndEnrichBooks = onCall(async (request) => {
                     }
                     chosen = chosen || docs[0];
                     return {
-                        title: chosen.title || bookTitle,
-                        authors: Array.isArray(chosen.author_name)
-                            ? chosen.author_name
-                            : (chosen.author_name ? [chosen.author_name] : []),
-                        key: chosen.key || (Array.isArray(chosen.work_key) ? chosen.work_key[0] : chosen.work_key) || null,
-                        first_publish_year: chosen.first_publish_year || null,
+                        ...chosen,
                         createdAt: new Date(),
                         reason_for_recommendation: rec.reason_for_recommendation,
                     };

@@ -26,80 +26,46 @@ class Book {
 
   String get title => data['title'] ?? '';
 
-  // Updated for ISBNdb format - authors is now a simple string array
-  List<String> get authors {
-    final authorsData = data['authors'];
-    if (authorsData is List) {
-      return authorsData
-          .map((author) => author.toString())
-          .where((name) => name.isNotEmpty)
-          .toList();
+  List<String> get subjects =>
+      List<String>.from(data['subject'] ?? data['subjects'] ?? []);
+
+  List<Map<String, dynamic>> get authors {
+    if (data['authors'] is List) {
+      return List<Map<String, dynamic>>.from((data['authors']));
+    } else if (data['author_name'] is List) {
+      return List<Map<String, dynamic>>.from((data['author_name']
+          .map((name) => {"name": name, "key": ""})
+          .toList()));
     }
-    return ['Unknown Author'];
+    return [];
   }
-
-  // Legacy getter for backward compatibility
-  List<Map<String, dynamic>> get authorsLegacy {
-    // Convert new format to old format for backward compatibility
-    final authorStrings = authors;
-    return authorStrings
-        .map((name) => {
-              'name': name,
-              'details': {'name': name}
-            })
-        .toList();
-  }
-
-  // Updated field mappings for ISBNdb
-  List<String> get subjects => List<String>.from(data['subjects'] ?? []);
 
   String get isbn => data['isbn'] ?? data['isbn10'] ?? '';
   String get isbn_13 => data['isbn13'] ?? '';
+  String get reason_for_recommendation =>
+      data['reason_for_recommendation'] ?? '';
 
-  // ISBNdb uses 'image' instead of cover IDs
-  String get coverImageUrl {
-    final imageUrl = data['image'];
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      return imageUrl;
+  int get cover {
+    if (data['cover_id'] != null) return data['cover_id'];
+    if (data['covers'] is List && data['covers'].isNotEmpty) {
+      return data['covers'][0];
     }
-    // Fallback to original image if available
-    final originalUrl = data['image_original'];
-    if (originalUrl != null && originalUrl.isNotEmpty) {
-      return originalUrl;
-    }
-    return '';
-  }
-
-  // Legacy cover property - return 0 since ISBNdb doesn't use cover IDs
-  int get cover => 0;
-
-  // New ISBNdb specific properties
-  String get publisher => data['publisher'] ?? '';
-  int get pages => data['pages'] ?? 0;
-  String get datePublished => data['date_published'] ?? '';
-  int? get firstPublishYear {
-    final date = data['date_published'];
-    if (date != null) {
-      return int.tryParse(date.toString());
-    }
-    return null;
+    return 0;
   }
 
   String get language => data['language'] ?? '';
   String get binding => data['binding'] ?? '';
 
-  // Legacy bookKey - use ISBN as identifier
-  String get bookKey => isbn.isNotEmpty ? '/books/$isbn' : '';
+  String get bookKey => data['key'] ?? '';
 
   String get description {
-    // ISBNdb typically doesn't have descriptions, but check if available
     if (data['description'] is String) {
       return data['description'];
     } else if (data['description'] is Map &&
         (data['description'] as Map)['value'] is String) {
       return (data['description'] as Map)['value'];
     }
-    return 'No description available';
+    return '';
   }
 
   String? get bookshopCoverUrl => data['bookshop_cover_url'];

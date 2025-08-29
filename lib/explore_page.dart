@@ -5,6 +5,7 @@ import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:bookswiperapp/home.dart';
 import 'package:bookswiperapp/main.dart';
 import 'package:bookswiperapp/theme/theme.dart';
+import 'package:bookswiperapp/widgets/get_Ai_summary.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -285,8 +286,10 @@ class _ExplorePage extends State<ExplorePage> {
                             style: appTheme.textTheme.headlineMedium,
                             overflow: TextOverflow.fade,
                           ),
-                          Text(book.data["publish_date"] ?? '',
-                              style: appTheme.textTheme.bodyMedium),
+                          book.data["publish_date"] != null
+                              ? Text(book.data["publish_date"] ?? '',
+                                  style: appTheme.textTheme.bodyMedium)
+                              : Container(),
                         ],
                       ),
                       Wrap(
@@ -294,10 +297,43 @@ class _ExplorePage extends State<ExplorePage> {
                         runSpacing: 4,
                         children: book.authors
                             .map((author) => AuthorWidget(
-                                  authorName: author,
+                                  authorName: author["name"] ?? "",
+                                  authorKey: author["key"] ?? '',
                                 ))
                             .toList(),
                       ),
+                      Row(
+                        spacing: 12,
+                        children: [
+                          aiSummaryButton(
+                            bookDocId: book.docId,
+                            bookKey: book.data['key'],
+                            title: book.title,
+                            author: book.authors!.isNotEmpty
+                                ? book.authors![0]["name"] ?? ''
+                                : '',
+                          ),
+                          Container(
+                            alignment: Alignment.centerRight,
+                            child: BookshopLinkButton(
+                              title: book.title,
+                              author: book.authors
+                                  .map((a) => a["name"])
+                                  .toList()
+                                  .join(", "),
+                              isbn: (book.data['isbn_13'] is List &&
+                                      book.data['isbn_13'].isNotEmpty)
+                                  ? book.data['isbn_13'][0]
+                                  : (book.data['isbn_13'] ?? null),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (book.reason_for_recommendation.isNotEmpty) ...[
+                        Text(
+                          book.reason_for_recommendation,
+                        ),
+                      ],
                       if (book.description.isNotEmpty) ...[
                         SizedBox(height: 8),
                         Text(
@@ -305,25 +341,9 @@ class _ExplorePage extends State<ExplorePage> {
                           style: appTheme.textTheme.bodyMedium,
                         ),
                       ],
-                      Container(
-                        width: double.infinity,
-                        alignment: Alignment.centerLeft,
-                        child: BookshopLinkButton(
-                          title: book.title,
-                          author: book.authors.join(", "),
-                          isbn: (book.data['isbn_13'] is List &&
-                                  book.data['isbn_13'].isNotEmpty)
-                              ? book.data['isbn_13'][0]
-                              : (book.data['isbn_13'] ?? null),
-                        ),
+                      SizedBox(
+                        height: 12,
                       ),
-                      Text(
-                        "Subjects: " +
-                            book.subjects
-                                .toString()
-                                .replaceAll("[", "")
-                                .replaceAll("]", ""),
-                      )
                     ],
                   ),
                 ]),

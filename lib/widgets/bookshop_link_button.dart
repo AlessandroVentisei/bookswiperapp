@@ -69,12 +69,12 @@ class BookshopLinkButton extends StatelessWidget {
       );
     }
 
-    return ElevatedButton.icon(
+    return OutlinedButton.icon(
       icon: const Icon(Icons.open_in_new),
-      label: const Text('Find on Bookshop.org'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: appTheme.colorScheme.secondary,
-        foregroundColor: appTheme.colorScheme.onSecondary,
+      label: const Text('Buy'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: appTheme.colorScheme.onPrimary,
+        side: BorderSide(color: Colors.transparent),
       ),
       onPressed: () => _handlePress(context, url),
     );
