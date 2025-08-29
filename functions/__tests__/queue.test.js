@@ -45,8 +45,8 @@ describe('Queue Functions', () => {
   it('should return summary of book.', async () => {
     const userId = 'testuser';
     const bookId = '1234';
-    // await db.collection('users').doc(userId).set({"username": "testuser", subjectKeywords: ["science-fiction", "non-fiction physics"], fetchedSubjects: [], currentIndex: 0, isUpdating: false });
-    // await db.collection('users').doc(userId).collection('books').doc(bookId).set({ title: '1984', author: 'George Orwell', workKey: bookId });
+    await db.collection('users').doc(userId).set({"username": "testuser", subjectKeywords: ["science-fiction", "non-fiction physics"], fetchedSubjects: [], currentIndex: 0, isUpdating: false });
+    await db.collection('users').doc(userId).collection('books').doc(bookId).set({ title: '1984', author: 'George Orwell', key: bookId });
     await wrappedFetchAiSummary({data: { user: userId, title: '1984', author: 'George Orwell', key: bookId }});
   }, 50000);
 

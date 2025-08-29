@@ -3,11 +3,12 @@ const logger = require("firebase-functions/logger");
 const axios = require("axios");
 const fs = require('fs');
 const path = require('path');
-const { getFirestore } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const functions = require("firebase-functions");
 const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { user } = require("firebase-functions/v1/auth");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { shuffleArray, fetchBookshopCover, getMostRecentEdition } = require("./edition_functions.js");
 const { getGeminiAuthorSuggestions, enrichAuthorsWithOpenLibrary } = require('./author_functions.js');
 const { url } = require("inspector");
@@ -76,6 +77,49 @@ function sanitizeForFirestore(value) {
     if (value === undefined) return null;
     return value;
 }
+
+// Run once a week at local midnight (Europe/London) to reset aiSummaryUsage safely and efficiently
+// Trigger/rerun from Cloud Scheduler if needed.
+exports.accountcleanup = onSchedule({ schedule: "0 0 * * 1", timeZone: "Europe/London" }, async () => {
+    const pageSize = 500; // paginate to control memory/CPU
+    let lastDoc = null;
+    let total = 0;
+
+    const writer = db.bulkWriter();
+    writer.onWriteError((error) => {
+        logger.error("BulkWriter write error", error);
+        // Retry safe errors
+        return true;
+    });
+
+    try {
+        // Page through all users ordered by doc name for consistent pagination
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            let query = db.collection('users').orderBy('__name__').limit(pageSize);
+            if (lastDoc) query = query.startAfter(lastDoc);
+            const snap = await query.get();
+            if (snap.empty) break;
+
+            snap.docs.forEach((doc) => {
+                writer.update(doc.ref, {
+                    aiSummariesCount: 0,
+                    lastAiSummariesResetAt: FieldValue.serverTimestamp(),
+                });
+                total += 1;
+            });
+
+            lastDoc = snap.docs[snap.docs.length - 1];
+        }
+
+        await writer.close();
+        logger.log(`User cleanup finished; reset aiSummariesCount for ${total} users`);
+    } catch (err) {
+        try { await writer.close(); } catch (_) {}
+        logger.error("User cleanup failed", err);
+        throw err;
+    }
+});
 
 exports.fetchAiSummary = onCall(async (request, response) => {
     const user = request.data.user;
