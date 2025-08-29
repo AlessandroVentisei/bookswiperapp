@@ -70,6 +70,7 @@ flutter:
   assets:
     - lib/assets/loading_book.riv
     - lib/assets/openlib_logo.png
+    - lib/assets/bookshoporg_logo.png
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

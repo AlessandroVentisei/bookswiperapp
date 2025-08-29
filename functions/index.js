@@ -1,25 +1,69 @@
 const {onRequest, onCall, HttpsError} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
-const axios = require("axios"); // Add axios for HTTP requests
+const axios = require("axios");
+const fs = require('fs');
+const path = require('path');
 const { getFirestore } = require("firebase-admin/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const functions = require("firebase-functions");
 const { onDocumentCreated, onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const { user } = require("firebase-functions/v1/auth");
-const { getMostRecentEdition, parseYear, fetchBookshopCover } = require("./edition_functions.js");
+const { shuffleArray } = require("./edition_functions.js");
 const { getGeminiAuthorSuggestions, enrichAuthorsWithOpenLibrary } = require('./author_functions.js');
-initializeApp(); // Initialize Firebase Admin SDK
-const db = getFirestore(); // Get Firestore instance
+const { url } = require("inspector");
+const { gemini } = require("@genkit-ai/googleai");
+initializeApp();
+const db = getFirestore();
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+// Load ISBNDB API key from env, functions config, or local keys.json (dev only)
+function loadISBNApiKey() {
+  // Prefer environment variable on CI/production
+  if (process.env.ISBNDB_API_KEY) return process.env.ISBNDB_API_KEY;
+  // Local fallback for dev: functions/keys.json with shape { "isbn": "<API_KEY>" }
+  try {
+    const keysPath = path.join(__dirname, 'keys.json');
+    if (fs.existsSync(keysPath)) {
+      const isbn = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+      return isbn;
+    }
+  } catch (_) {/* ignore */}
+  return undefined;
+}
+const IBSNkey = loadISBNApiKey();
+let axiosConfig = {
+  method: 'get',
+  maxBodyLength: Infinity,
+  headers: { 
+    'Authorization': IBSNkey.isbn
+  }
+};
+
+// Load API key from env or keys.json (optional for tests)
+function loadGoogleApiKey() {
+  if (process.env.GOOGLE_API_KEY) return process.env.GOOGLE_API_KEY;
+  try {
+    const keysPath = path.join(__dirname, 'keys.json');
+    if (fs.existsSync(keysPath)) {
+      const { googleGenkit } = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+      return googleGenkit;
+    }
+  } catch (_) {}
+  return undefined;
+}
+const key = loadGoogleApiKey();
+if (key) process.env.GOOGLE_API_KEY = key;
+
+// Initialize Genkit with GoogleAI plugin
+const ai = genkit({
+  plugins: [googleAI()],
+  model: googleAI.model('gemini-2.5-flash'),
+});
 
 // I need functions for: when
 // 1. A user signs up, create a queue for them
 // 2. A use likes a book
 // 3. A user dislikes a book
 // 4. More books need to be fetched.
-// 5. A user wants to see trending books
 
 exports.likeBook = onCall(async (request, response) => {
     // This function will handle the liking of a book
@@ -35,12 +79,18 @@ exports.likeBook = onCall(async (request, response) => {
     // move book from queue to liked books
     const userQueueRef = db.collection("users").doc(user).collection("books");
     const likedBooksRef = db.collection("users").doc(user).collection("likedBooks");
+    const dislikedBooksRef = db.collection("users").doc(user).collection("dislikedBooks");
 
     try {
-        // Get the book document
-        const bookDoc = await userQueueRef.doc(book).get();
+        // Get the book document by checking both queue and dislikedBooks.
+        var bookDoc = await userQueueRef.doc(book).get();
+        var loc = "books";
         if (!bookDoc.exists) {
-            throw new HttpsError("not-found", "Book not found in queue.");
+            bookDoc = await dislikedBooksRef.doc(book).get();
+            loc = "dislikedBooks";
+            if (!bookDoc.exists) {
+                throw new HttpsError("not-found", "Book not found in queue or dislikedBooks.");
+            }
         }
 
         const bookData = bookDoc.data();
@@ -48,12 +98,16 @@ exports.likeBook = onCall(async (request, response) => {
         // Add the book to the likedBooks collection
         await likedBooksRef.doc(book).set(bookData);
 
-        // Remove the book from the queue
-        await userQueueRef.doc(book).delete();
+        // Remove the book from loc
+        if (loc === "books") {
+            await userQueueRef.doc(book).delete();
+        } else if (loc === "dislikedBooks") {
+            await dislikedBooksRef.doc(book).delete();
+        }
 
-        // Count liked books and update shortlist every 10 likes
+        // Count liked books and update shortlist every 5 likes
         const likedBooksCount = (await likedBooksRef.get()).size;
-        if (likedBooksCount % 10 == 0) {
+        if (likedBooksCount % 5 == 0) {
             await updateShortlistedAuthorsForUser(user);
         }
         return { message: "Book moved to likedBooks successfully." };
@@ -77,26 +131,36 @@ exports.dislikeBook = onCall(async (request) => {
     // move book from queue to liked books
     const userQueueRef = db.collection("users").doc(user).collection("books");
     const dislikedBooksRef = db.collection("users").doc(user).collection("dislikedBooks");
+    const likedBooksRef = db.collection("users").doc(user).collection("likedBooks");
 
     try {
         // Get the book document
         const bookDoc = await userQueueRef.doc(book).get();
+        var loc = "books";
         if (!bookDoc.exists) {
-            throw new HttpsError("not-found", "Book not found in queue.");
+            bookDoc = await likedBooksRef.doc(book).get();
+            loc = "likedBooks";
+            if (!bookDoc.exists) {
+                throw new HttpsError("not-found", "Book not found in queue or likedBooks.");
+            }
         }
 
         const bookData = bookDoc.data();
 
-        // Add the book to the likedBooks collection
+        // Add the book to the dislikedBooks collection
         await dislikedBooksRef.doc(book).set(bookData);
 
-        // Remove the book from the queue
-        await userQueueRef.doc(book).delete();
+        // Remove the book from loc
+        if (loc === "books") {
+            await userQueueRef.doc(book).delete();
+        } else if (loc === "likedBooks") {
+            await likedBooksRef.doc(book).delete();
+        }
 
-        return { message: "Book moved to likedBooks successfully." };
+        return { message: "Book moved to dislikedBooks successfully." };
     } catch (error) {
-        logger.error("Error moving book to likedBooks", error);
-        throw new HttpsError("internal", "Failed to move book to likedBooks.");
+        logger.error("Error moving book to dislikedBooks", error);
+        throw new HttpsError("internal", "Failed to move book to dislikedBooks.");
     }
   });
 
@@ -234,145 +298,127 @@ exports.userSetup = onCall(async (request) => {
 });
 
 exports.fetchAndEnrichBooks = onCall(async (request) => {
-    // Combined fetch and enrich logic
-    const userId = request.data.userId; // Extract userId from the request
-    const userDocRef = db.collection("users").doc(userId);
-    const queueRef = db.collection("users").doc(userId).collection("books");
-    const likedBooksRef = db.collection("users").doc(userId).collection("likedBooks");
-    const dislikedBooksRef = db.collection("users").doc(userId).collection("dislikedBooks");
-    // Check if the queue has less than 10 books
-    const queueSnapshot = await queueRef.get();
-    const likedBooksSnapshot = await likedBooksRef.get();
-    const dislikedBooksSnapshot = await dislikedBooksRef.get();
-    if (queueSnapshot.docs.length >= 10) {
-        logger.log(`User ${userId} already has enough books in the queue.`);
-        return;
+  // Combined fetch and enrich logic
+  const userId = request.data.userId; // Extract userId from the request
+  const userDocRef = db.collection("users").doc(userId);
+  const queueRef = db.collection("users").doc(userId).collection("books");
+  const likedBooksRef = db.collection("users").doc(userId).collection("likedBooks");
+  const dislikedBooksRef = db.collection("users").doc(userId).collection("dislikedBooks");
+  // Check if the queue has less than 10 books
+  const queueSnapshot = await queueRef.get();
+  const likedBooksSnapshot = await likedBooksRef.get();
+  const dislikedBooksSnapshot = await dislikedBooksRef.get();
+  let newBooks = [];
+  if (queueSnapshot.docs.length >= 10) {
+    logger.log(`User ${userId} already has enough books in the queue.`);
+    return;
+  }
+  const userDoc = await userDocRef.get();
+  if (!userDoc.exists) {
+    logger.error(`User document not found for user ${userId}`);
+    return;
+  }
+  const userData = userDoc.data();
+  const subjectKeywords = userData.subjectKeywords.slice(0, 5) || [];
+  var userCurrentIndex = userData.currentIndex || 0;
+  if (userCurrentIndex === undefined || userCurrentIndex === null) {
+    await userDocRef.update({ currentIndex: 0 });
+    userCurrentIndex = 0;
+  }
+  if (subjectKeywords.length === 0) {
+    logger.log(`No subject keywords found for user ${userId}`);
+    return;
+  }
+  if (userData.isUpdating == true || userData.isUpdating == "true") {
+    logger.log(`User ${userId} is already updating the queue. ${userData.isUpdating}`);
+    return;
+  }
+  await userDocRef.update({ isUpdating: true });
+  // Declare enrichedBooks at the top so it's in scope
+  const enrichedBooks = [];
+
+  //TODO: Generate another keyword using Gemini to break taste of user.
+  await ai.generate({
+    prompt: `Generate a book subject keyword which will break the taste of the user based on their current most liked subject keywords: ${subjectKeywords.join(', ')}. Return a single keyword.`,
+    model: googleAI.model('gemini-2.5-flash'),
+  }).then(async (response) => {
+    const newKeyword = response.text.replace(/```json|```/gi, '').trim();
+    if (newKeyword) {
+      subjectKeywords.push(newKeyword);
+      logger.log(`Generated new keyword for user ${userId}: ${newKeyword}`);
     }
-    const userDoc = await userDocRef.get();
-    if (!userDoc.exists) {
-        logger.error(`User document not found for user ${userId}`);
-        return;
-    }
-    const userData = userDoc.data();
-    const subjectKeywords = userData.subjectKeywords.slice(0, 3) || [];
-    var userCurrentIndex = userData.currentIndex || 0;
-    if (userCurrentIndex === undefined || userCurrentIndex === null) {
-        await userDocRef.update({ currentIndex: 0 });
-        userCurrentIndex = 0;
-    }
-    if (subjectKeywords.length === 0) {
-        logger.log(`No subject keywords found for user ${userId}`);
-        return;
-    }
-    if (userData.isUpdating == true || userData.isUpdating == "true") {
-        logger.log(`User ${userId} is already updating the queue. ${userData.isUpdating}`);
-        return;
-    }
-    await userDocRef.update({ isUpdating: true });
-    // Declare enrichedBooks at the top so it's in scope
-    const enrichedBooks = [];
-    try {
+  }).catch((error) => {
+    logger.error(`Error generating new keyword for user ${userId}:`, error);
+  });
+  try {
     // Fetch books based on subject keywords
     const books = [];
+    const pageSize = 100; // Number of books to fetch per request
     for (const keyword of subjectKeywords) {
-        try {
-            const formattedKeyword = keyword.replace(/\s+/g, "_").toLowerCase();
-            // First, get the work_count for this subject
-            const subjectUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true`;
-            const subjectResponse = await axios.get(subjectUrl);
-            const workCount = subjectResponse.data.work_count || 0;
-            if (workCount === 0) {continue};
-            // Pick a random offset between 0 and top 1% of workCount (limit to 12 per OpenLibrary API)
-            const maxOffset = Math.max(0, Math.round(workCount/100));
-            const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
-            // Fetch a random page of works for this subject
-            const worksUrl = `https://openlibrary.org/subjects/${formattedKeyword}.json?details=true&offset=${randomOffset}`;
-            const worksResponse = await axios.get(worksUrl);
-            const bookData = worksResponse.data['works'] || [];
-            bookData.filter((book) => book.first_publish_year > 1980); // Filter out books published before 1980s (could be user parameter in the future)
-            const formattedBooks = bookData.map((book, indx) => ({
-                ...book,
-                createdAt: new Date(),
-                index: userCurrentIndex + indx
-            }));
-            userCurrentIndex += formattedBooks.length;
-            books.push(...formattedBooks);
-        } catch (error) {
-            logger.error(`Error fetching books for keyword "${keyword}" for user ${userId}`, error);
-        }
+      try {
+        const formattedKeyword = keyword.replace(/\s+/g, "-").toLowerCase();
+        // First, get the work_count for this subject
+        const subjectUrl = encodeURI(`https://api2.isbndb.com/books/${formattedKeyword}?page=1&pageSize=${pageSize}&column=subjects&language=en&shouldMatchAll=0`);
+        const subjectResponse = await axios.request({ ...axiosConfig, url: subjectUrl });
+        console.log('Subject Response:', subjectResponse.data.total);
+        const itemCount = subjectResponse.data.total || 0;
+        if (itemCount === 0) {continue};
+        // Pick a random page offset between 0 and top 2% of itemCount.
+        const maxPage = Math.round((itemCount/50)/pageSize);
+        const pageOffset = Math.floor(Math.random() * (maxPage))+1;
+        // Fetch a random page of works for this subject
+        const booksUrl = `https://api2.isbndb.com/books/${formattedKeyword}?page=${pageOffset}&pageSize=${pageSize}&column=subjects&language=en&shouldMatchAll=0`;
+        const booksResponse = await axios.request({ ...axiosConfig, url: booksUrl });
+        const bookData = booksResponse.data['books'] || [];
+        //filter out books independently published and before 1900.
+        const filteredBooks = bookData.filter(
+          (book) =>
+            book.publisher &&
+            book.publisher.toLowerCase() !== "independently published" &&
+            book.publisher.toLowerCase() !== "tor books" &&
+            Number(book.date_published) > 1900
+        );
+        const formattedBooks = filteredBooks.map((book, indx) => ({
+          ...book,
+          createdAt: new Date(),
+          index: userCurrentIndex + indx
+        }));
+        userCurrentIndex += formattedBooks.length;
+        books.push(...formattedBooks);
+      } catch (error) {
+        logger.error(`Error fetching books for keyword "${keyword}" for user ${userId}`, error);
+      }
     }
     // Filter out books that are already in the queue/liked/disliked
     console.log(`Fetched ${books.length} books for user ${userId} with keywords: ${subjectKeywords.join(", ")}`);
-    const existingQueueBooks = queueSnapshot.docs.map((doc) => doc.data().key);
-    const existingLikedBooks = likedBooksSnapshot.docs.map((doc) => doc.data().key);
-    const existingDislikedBooks = dislikedBooksSnapshot.docs.map((doc) => doc.data().key);
+    const existingQueueBooks = queueSnapshot.docs.map((doc) => doc.data().title);
+    const existingLikedBooks = likedBooksSnapshot.docs.map((doc) => doc.data().title);
+    const existingDislikedBooks = dislikedBooksSnapshot.docs.map((doc) => doc.data().title);
     const existingBooks = [...existingQueueBooks, ...existingLikedBooks, ...existingDislikedBooks];
-    let newBooks = books.filter((book) => !existingBooks.includes(book.key));
+    newBooks = books.filter((book) => !existingBooks.includes(book.title));
     if (newBooks.length === 0) {
-        logger.log(`No new books found for user ${userId}`);
-        await userDocRef.update({ isUpdating: false });
-        return;
+      logger.log(`No new books found for user ${userId}`);
+      await userDocRef.update({ isUpdating: false });
+      return;
     }
-    // Enrich and filter books
-    for (const book of newBooks) {
-        try {
-            // Fetch editions for the book
-            const editionsUrl = `https://openlibrary.org${book.key}/editions.json`;
-            const editionsResponse = await axios.get(editionsUrl);
-            const editionsData = editionsResponse.data;
-            if (!editionsData || !editionsData.entries || editionsData.entries.length === 0) continue;
-            const firstEdition = getMostRecentEdition(editionsData.entries);
-            if(!firstEdition) continue;
-            // Fetch all author details in parallel and attach to authors array
-            if (Array.isArray(book.authors)) {
-                book.authors = await Promise.all(
-                    book.authors.map(async (author) => {
-                        // Support both { key } and { author: { key } }
-                        const authorKey = author.key || (author.author && author.author.key);
-                        if (authorKey) {
-                            const authorUrl = `https://openlibrary.org${authorKey}.json`;
-                            const authorResponse = await axios.get(authorUrl);
-                            return { ...author, details: authorResponse.data };
-                        }
-                        return author;
-                    })
-                );
-            }
-            // Scrape Bookshop.org for a cover image
-            try {
-                const bookshopCover = await fetchBookshopCover(book.title, book.authors[0]?.name);
-                book.bookshop_cover_url = bookshopCover || null;
-            } catch (error) {
-                logger.error(`Error fetching bookshop cover for book ${book.key}`, error);
-            }
-            enrichedBooks.push({ ...book, ...firstEdition, authors: book.authors }); } catch (error) {
-            logger.error(`Error enriching book ${book.key}`, error);
-        }
-    }
-    } catch (error) {
-        logger.error(`Error fetching books for user ${userId}`, error);
-        await userDocRef.update({ isUpdating: false });
-        throw new HttpsError("internal", "Failed to fetch and enrich books.");
-    }
+  } catch (error) {
+    logger.error(`Error fetching books for user ${userId}`, error);
+    await userDocRef.update({ isUpdating: false });
+    throw new HttpsError("internal", "Failed to fetch and enrich books.");
+  }
 
-    if (enrichedBooks.length === 0) {
-        logger.log(`No enriched books found for user ${userId}`);
-        await userDocRef.update({ isUpdating: false });
-        return;
-    }
-    
-    // Batch write enriched books
-    const batch = db.batch();
-    enrichedBooks.forEach((book) => {
-        // Remove 'availability' field before writing
-        const { availability, ...cleanedBook } = book;
-        const bookDocRef = queueRef.doc();
-        batch.set(bookDocRef, cleanedBook);
-    });
-    await batch.commit();
-    await userDocRef.update({ isUpdating: false, currentIndex: userCurrentIndex });
-    logger.log(`Fetched and stored ${enrichedBooks.length} enriched books for user ${userId}`);
-    return { message: "Books fetched, enriched, and stored successfully."};
+  // shuffle the newBooks array
+  shuffleArray(newBooks);
+  // Batch write books
+  const batch = db.batch();
+  newBooks.forEach((book) => {
+    const bookDocRef = queueRef.doc();
+    batch.set(bookDocRef, book);
+  });
+  await batch.commit();
+  await userDocRef.update({ isUpdating: false, currentIndex: userCurrentIndex });
+  logger.log(`Fetched and stored ${newBooks.length} new books for user ${userId}`);
+  return { message: "Books fetched and stored successfully."};
 });
 
 

@@ -66,7 +66,7 @@ class _NewUserSetupState extends State<NewUserSetup> {
         "userId": FirebaseAuth.instance.currentUser!.uid,
       });
     }
-    Navigator.push(
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => LoadingPage()),
     );

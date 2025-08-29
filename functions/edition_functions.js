@@ -8,6 +8,13 @@ function parseYear(publishDate) {
   return match ? parseInt(match[0], 10) : null;
 }
 
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
 // Function to process editions and select the most recent one
 function getMostRecentEdition(editions) {
   // filter out editions that aren't english, don't have a cover or don't have an ISBN-13
@@ -67,5 +74,6 @@ async function fetchBookshopCover(title, authorName) {
 module.exports = {
   parseYear,
   getMostRecentEdition,
-  fetchBookshopCover
+  fetchBookshopCover,
+  shuffleArray
 };

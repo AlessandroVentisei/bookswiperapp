@@ -70,9 +70,6 @@ class AppRoot extends StatelessWidget {
                   if (userData['isNewUser'] == true) {
                     return NewUserSetup();
                   }
-                  if (userData['isFetchingBooks'] == true) {
-                    return LoadingPage();
-                  }
                   return HomePage();
                 },
               );

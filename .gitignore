@@ -63,7 +63,7 @@
 # Allow files necessary for Xcode Cloud
 !ios/Flutter/Generated.xcconfig
 !ios/.generated/
-!ios/.symlinks/
+
 
 # Exceptions to above rules.
 !**/ios/**/default.mode1v3
@@ -77,3 +77,4 @@ node_modules
 functions/serviceAccountKey.json
 functions/test_bookshop_scrape.js
 functions/keys.json
+.flutter-plugins-dependencies
