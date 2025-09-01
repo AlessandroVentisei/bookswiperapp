@@ -86,7 +86,7 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text('Account',
+            child: Text('Account - ${_auth.currentUser?.email ?? 'User'}',
                 style: appTheme.textTheme.displayMedium!.copyWith(
                   color: appTheme.colorScheme.primary,
                 )),
@@ -110,21 +110,7 @@ class SettingsPage extends StatelessWidget {
                 leading:
                     Icon(Icons.star_rate, color: appTheme.colorScheme.primary),
                 onTap: () async {
-                  // Replace with your actual app store URLs
-                  final iosUrl =
-                      Uri.parse('https://apps.apple.com/app/idYOUR_APP_ID');
-                  final androidUrl = Uri.parse(
-                      'https://play.google.com/store/apps/details?id=YOUR.PACKAGE.NAME');
-                  final url = Theme.of(context).platform == TargetPlatform.iOS
-                      ? iosUrl
-                      : androidUrl;
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Could not open the app store.')),
-                    );
-                  }
+                  // TODO: ADD REVIEW LOGIC HERE.
                 },
               ),
               ListTile(
