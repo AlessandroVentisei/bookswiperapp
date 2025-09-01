@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bookswiperapp/theme/theme.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 /// Convenience wrapper that returns a ready-to-use button widget.
 /// Usage:
@@ -367,7 +370,7 @@ class _AiSummaryButtonState extends State<_AiSummaryButton> {
                   Align(
                     alignment: Alignment.center,
                     child: TextButton(
-                      onPressed: () => {},
+                      onPressed: () async => {await presentPaywall()},
                       child: const Text('Upgrade (coming soon)',
                           style: TextStyle(color: Colors.blue)),
                     ),
@@ -377,6 +380,45 @@ class _AiSummaryButtonState extends State<_AiSummaryButton> {
         );
       },
     );
+  }
+
+  Future<String> presentPaywall() async {
+    // Guard: only support iOS for now
+    if (!Platform.isIOS) {
+      _showSnack('In‑app purchases are only available on iOS for now.', false);
+      return 'unsupported-platform';
+    }
+
+    try {
+      // Sanity check: fetch offerings first to surface configuration issues early
+      final offerings = await Purchases.getOfferings();
+
+      print(offerings.current);
+      final current = offerings.current;
+      if (current == null || (current.availablePackages.isEmpty)) {
+        _showSnack(
+            'Paywall not configured: no current offering/packages found.',
+            false);
+        // Tip: In RevenueCat dashboard, set a Current Offering with a Paywall and at least one package.
+        return 'no-offering';
+      }
+
+      final paywallResult = await RevenueCatUI.presentPaywall();
+      print('Paywall result: $paywallResult');
+      return paywallResult.toString();
+    } catch (e) {
+      final msg = e.toString();
+      print(e);
+      // PurchasesErrorCode.configurationError is 23; present a friendlier hint
+      if (msg.contains('23') || msg.toLowerCase().contains('configuration')) {
+        _showSnack(
+            'RevenueCat configuration error (code 23). Check SDK key, bundle ID, Offering, and Paywall.',
+            false);
+      } else {
+        _showSnack('Couldn\'t open paywall: $msg', false);
+      }
+      return 'error';
+    }
   }
 
   void _showSummarySheet(Map<String, dynamic> summary, List<dynamic> sources) {

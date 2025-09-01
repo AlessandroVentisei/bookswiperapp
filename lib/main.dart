@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:bookswiperapp/authentication_page.dart';
 import 'package:bookswiperapp/home.dart';
 import 'package:bookswiperapp/new_user_setup.dart';
@@ -22,7 +25,14 @@ void main() async {
   var app = await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
+  Purchases.setDebugLogsEnabled(true);
+  PurchasesConfiguration configuration;
+  // If the app is used on the playstore an additional configuration will be
+  // needed here.
+  if (Platform.isIOS) {
+    configuration = PurchasesConfiguration("appl_DslsXDExQKRfLdWXWlvZJGivkdk");
+    await Purchases.configure(configuration);
+  }
   // Initialize Firebase Functions and store the instance globally
   firebaseFunctions = FirebaseFunctions.instanceFor(app: app);
 
@@ -51,7 +61,9 @@ class AppRoot extends StatelessWidget {
         if (authSnapshot.connectionState == ConnectionState.waiting) {
           return SplashScreen(onInitializationComplete: () {});
         }
-
+        if (authSnapshot.hasData) {
+          Purchases.logIn(authSnapshot.data!.uid);
+        }
         final user = authSnapshot.data;
         print("User: ${user?.uid}");
         return user == null
