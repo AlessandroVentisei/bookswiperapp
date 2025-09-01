@@ -17,6 +17,7 @@ import 'author_details_page.dart';
 import 'settings_page.dart';
 import 'loading_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 FirebaseFunctions? firebaseFunctions;
 
@@ -51,7 +52,30 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AppRoot extends StatelessWidget {
+class AppRoot extends StatefulWidget {
+  @override
+  State<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<AppRoot> {
+  bool _requestedReview = false; // session-scoped guard
+
+  Future<void> _maybeRequestReview(Map<String, dynamic> userData) async {
+    if (_requestedReview) return;
+    final dynamic idx = userData['currentIndex'];
+    int currentIndex = 0;
+    if (idx is int) currentIndex = idx;
+    if (currentIndex > 50) {
+      final inAppReview = InAppReview.instance;
+      try {
+        if (await inAppReview.isAvailable()) {
+          await inAppReview.requestReview();
+        }
+      } catch (_) {}
+      _requestedReview = true; // mark as attempted once per session
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -79,6 +103,12 @@ class AppRoot extends StatelessWidget {
                   }
                   final userData =
                       userDocSnapshot.data!.data() as Map<String, dynamic>;
+
+                  // After we have user data, attempt review request once if threshold met
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _maybeRequestReview(userData);
+                  });
+
                   if (userData['isNewUser'] == true) {
                     return NewUserSetup();
                   }
