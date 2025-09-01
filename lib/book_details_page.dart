@@ -1,5 +1,6 @@
 import 'package:bookswiperapp/functions/get_books.dart';
 import 'package:bookswiperapp/widgets/book_cover_image.dart';
+import 'package:bookswiperapp/widgets/get_Ai_summary.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bookswiperapp/theme/theme.dart';
@@ -50,25 +51,35 @@ class BookDetailsPage extends StatelessWidget {
                   style: appTheme.textTheme.bodyMedium,
                 ),
               ),
-            if (book.data['isbn_13'] != null &&
-                book.data['isbn_13'] is List &&
-                (book.data['isbn_13'] as List).isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 12.0),
-                child: BookshopLinkButton(
+            SizedBox(
+              height: 12,
+            ),
+            Row(
+              spacing: 12,
+              children: [
+                aiSummaryButton(
+                  bookDocId: book.docId,
+                  bookKey: book.data['key'],
                   title: book.title,
-                  author: book.authors.join(", "),
-                  isbn: (book.data['isbn_13'] as List)[0],
+                  author: book.authors!.isNotEmpty
+                      ? book.authors![0]["name"] ?? ''
+                      : '',
                 ),
-              ),
-            if (book.subjects.isNotEmpty)
+                BookshopLinkButton(
+                    title: book.title, author: book.authors.join(", ")),
+              ],
+            ),
+            if (book.reason_for_recommendation.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 12.0),
                 child: Text(
-                  'Subjects: ' + book.subjects.take(5).join(', '),
+                  book.reason_for_recommendation,
                   style: appTheme.textTheme.bodyMedium,
                 ),
               ),
+            SizedBox(
+              height: 32,
+            ),
           ],
         ),
       ),

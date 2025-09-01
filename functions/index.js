@@ -126,7 +126,14 @@ exports.fetchAiSummary = onCall(async (request, response) => {
     const key = request.data.key
     const title = request.data.title;
     const author = request.data.author || '';
-    const bookDoc = await db.collection("users").doc(user).collection("books").where("key", "==", key).limit(1).get();
+    // this function checks books (queue), then liked, then disliked books for the bookDoc.
+    var bookDoc = await db.collection("users").doc(user).collection("books").where("key", "==", key).limit(1).get();
+    if (bookDoc.empty) {
+        bookDoc = await db.collection("users").doc(user).collection("likedBooks").where("key", "==", key).limit(1).get();
+    }
+    if (bookDoc.empty) {
+        bookDoc = await db.collection("users").doc(user).collection("dislikedBooks").where("key", "==", key).limit(1).get();
+    }
     try {
         if (bookDoc.empty) {
             throw new HttpsError("not-found", "Book not found in queue.");
